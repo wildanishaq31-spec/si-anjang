@@ -110,13 +110,18 @@ export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loadi
       return;
     }
 
+    const now = new Date();
+    const todayStr = now.toISOString().substring(0, 10);
+    const bln = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const currentPeriode = `${bln[now.getMonth()]} ${now.getFullYear()}`;
+
     const payload = {
       isEdit: isEdit ? 'true' : 'false',
       dataId: editId,
-      tanggal,
+      tanggal: isEdit && tanggal ? tanggal : todayStr,
+      periode: isEdit && periode ? periode : currentPeriode,
       id_karyawan: selectedKaryawan ? selectedKaryawan.id : (editId || Date.now()),
       nama_karyawan: selectedKaryawan ? selectedKaryawan.nama : searchKaryawan,
-      periode,
       nominal: Number(nominal),
       metode_pembayaran: metode,
       uang_diterima: Number(uangDiterima || nominal),
@@ -277,48 +282,24 @@ export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loadi
             </div>
           </div>
 
-          {/* Row 2: Tanggal, Periode, Metode */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Tanggal Pembayaran
-              </label>
-              <input
-                type="date"
-                value={tanggal}
-                onChange={(e) => setTanggal(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:border-blue-600"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Periode Iuran
-              </label>
-              <input
-                type="text"
-                value={periode}
-                onChange={(e) => setPeriode(e.target.value)}
-                placeholder="Contoh: Mei 2026"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:border-blue-600"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+          {/* Row 2: Metode Pembayaran */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 Metode Pembayaran
               </label>
-              <select
-                value={metode}
-                onChange={(e) => handleMetodeChange(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:bg-white focus:outline-none focus:border-blue-600"
-              >
-                <option value="Cash / Tunai">Cash / Tunai</option>
-                <option value="Transfer">Transfer Bank</option>
-              </select>
+              <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                Otomatis Periode: {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+              </span>
             </div>
+            <select
+              value={metode}
+              onChange={(e) => handleMetodeChange(e.target.value)}
+              className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all cursor-pointer"
+            >
+              <option value="Cash / Tunai">Cash / Tunai</option>
+              <option value="Transfer">Transfer Bank</option>
+            </select>
           </div>
 
           {/* Row 3: Calculator Uang Diterima & Kembalian */}
