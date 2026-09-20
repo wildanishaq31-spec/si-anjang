@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   Coins,
   Search,
@@ -16,7 +16,7 @@ import {
 import Swal from 'sweetalert2';
 
 export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loading }) {
-  const dropdownRef = React.useRef(null);
+  const dropdownRef = useRef(null);
 
   // Form State
   const [isEdit, setIsEdit] = useState(false);
