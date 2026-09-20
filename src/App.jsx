@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
+import SplashScreen from './components/SplashScreen';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Karyawan from './pages/Karyawan';
@@ -28,6 +29,7 @@ export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   // Data states
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -251,14 +253,21 @@ export default function App() {
 
   // If not logged in, render Login
   if (!currentUser) {
-    return <Login onLoginSuccess={handleLogin} onLoginGuest={handleLoginGuest} />;
+    return (
+      <>
+        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+        <Login onLoginSuccess={handleLogin} onLoginGuest={handleLoginGuest} />
+      </>
+    );
   }
 
   const isTamu = currentUser.role === 'Tamu';
   const isAdmin = currentUser.role === 'Superadmin';
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex">
+    <>
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex">
       {/* Sidebar Navigation */}
       <Sidebar
         activePage={activePage}
@@ -362,5 +371,6 @@ export default function App() {
         />
       </div>
     </div>
+    </>
   );
 }
