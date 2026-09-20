@@ -1,4 +1,4 @@
-# E-Anjangsana (SI-ANJANG) — UPTD Puskesmas Cermee
+# (SI-ANJANG) — UPTD Puskesmas Cermee
 
 Aplikasi Progressive Web App (PWA) Manajemen Kasir, Iuran, Pengeluaran, dan Undian Tuan Rumah Anjangsana untuk Pegawai UPTD Puskesmas Cermee.
 
