@@ -16,6 +16,8 @@ import {
 import Swal from 'sweetalert2';
 
 export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loading }) {
+  const dropdownRef = React.useRef(null);
+
   // Form State
   const [isEdit, setIsEdit] = useState(false);
   const [editId, setEditId] = useState('');
@@ -52,13 +54,100 @@ export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loadi
     }).format(num || 0);
   };
 
-  // Autocomplete matching
+  // Close dropdown on click outside or Escape
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowDropdown(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Normalize string helper
+  const normalize = (str) => String(str || '').trim().toLowerCase();
+
+  // Set of employees who have already paid for the current active period
+  const paidEmployeeMap = useMemo(() => {
+    const map = new Set();
+    const targetPeriod = normalize(periode);
+
+    const now = new Date();
+    const blnIndo = ['januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember'];
+    const curMonthName = blnIndo[now.getMonth()];
+    const yearStr = String(now.getFullYear());
+    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+    const datePrefix = `${yearStr}-${monthStr}`;
+
+    (iuranList || []).forEach(item => {
+      // When editing an existing transaction, do not exclude the item being edited
+      if (isEdit && String(item.id) === String(editId)) {
+        return;
+      }
+
+      const itemPeriode = normalize(item.periode);
+      const itemTanggal = String(item.tanggal || '');
+
+      const isSamePeriod =
+        (itemPeriode && itemPeriode === targetPeriod) ||
+        (itemPeriode && itemPeriode.includes(curMonthName) && itemPeriode.includes(yearStr)) ||
+        (itemTanggal.startsWith(datePrefix));
+
+      if (isSamePeriod) {
+        if (item.id_karyawan) {
+          map.add(`id:${String(item.id_karyawan).trim()}`);
+        }
+        if (item.nama_karyawan) {
+          map.add(`name:${normalize(item.nama_karyawan)}`);
+        }
+      }
+    });
+
+    return map;
+  }, [iuranList, periode, isEdit, editId]);
+
+  // Check if an employee has already paid
+  const isKaryawanPaid = useCallback((k) => {
+    if (!k) return false;
+    return paidEmployeeMap.has(`id:${String(k.id).trim()}`) ||
+           paidEmployeeMap.has(`name:${normalize(k.nama)}`);
+  }, [paidEmployeeMap]);
+
+  // Available employees: ONLY those who have NOT yet paid this period
+  const unpaidKaryawanList = useMemo(() => {
+    return (karyawanList || []).filter(k => !isKaryawanPaid(k));
+  }, [karyawanList, isKaryawanPaid]);
+
+  // Autocomplete matching: search only among unpaid employees
   const matchingKaryawan = useMemo(() => {
-    if (!searchKaryawan.trim()) return [];
-    return (karyawanList || []).filter(k =>
-      k.nama.toLowerCase().includes(searchKaryawan.toLowerCase())
-    ).slice(0, 6);
-  }, [searchKaryawan, karyawanList]);
+    if (!searchKaryawan.trim()) {
+      return unpaidKaryawanList.slice(0, 8);
+    }
+    const query = normalize(searchKaryawan);
+    return unpaidKaryawanList.filter(k =>
+      normalize(k.nama).includes(query)
+    ).slice(0, 8);
+  }, [searchKaryawan, unpaidKaryawanList]);
+
+  // Detect if user typed someone who already paid
+  const alreadyPaidMatch = useMemo(() => {
+    if (!searchKaryawan.trim() || isEdit) return null;
+    const query = normalize(searchKaryawan);
+    const hasUnpaid = unpaidKaryawanList.some(k => normalize(k.nama) === query);
+    if (hasUnpaid) return null;
+
+    return (karyawanList || []).find(k =>
+      isKaryawanPaid(k) && normalize(k.nama).includes(query)
+    );
+  }, [searchKaryawan, isEdit, unpaidKaryawanList, karyawanList, isKaryawanPaid]);
 
   // Select employee from dropdown
   const handleSelectKaryawan = (k) => {
@@ -75,6 +164,15 @@ export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loadi
       setUangDiterima(nom);
       setKembalian(0);
     }
+  };
+
+  const handleClearSelected = () => {
+    setSelectedKaryawan(null);
+    setSearchKaryawan('');
+    setNominal(0);
+    setUangDiterima('');
+    setKembalian(0);
+    setShowDropdown(true);
   };
 
   // Calculate change
@@ -110,6 +208,35 @@ export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loadi
       return;
     }
 
+    // Double check duplicate prevention for non-edit mode
+    let targetKaryawan = selectedKaryawan;
+    if (!targetKaryawan && searchKaryawan.trim()) {
+      targetKaryawan = unpaidKaryawanList.find(k => normalize(k.nama) === normalize(searchKaryawan));
+    }
+
+    if (!isEdit) {
+      if (targetKaryawan && isKaryawanPaid(targetKaryawan)) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sudah Membayar',
+          text: `${targetKaryawan.nama} sudah tercatat membayar iuran pada periode ${periode}!`
+        });
+        return;
+      }
+
+      const alreadyPaid = (karyawanList || []).find(k =>
+        normalize(k.nama) === normalize(searchKaryawan) && isKaryawanPaid(k)
+      );
+      if (alreadyPaid) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sudah Membayar',
+          text: `${alreadyPaid.nama} sudah tercatat membayar iuran pada periode ${periode}!`
+        });
+        return;
+      }
+    }
+
     const now = new Date();
     const todayStr = now.toISOString().substring(0, 10);
     const bln = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -120,8 +247,8 @@ export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loadi
       dataId: editId,
       tanggal: isEdit && tanggal ? tanggal : todayStr,
       periode: isEdit && periode ? periode : currentPeriode,
-      id_karyawan: selectedKaryawan ? selectedKaryawan.id : (editId || Date.now()),
-      nama_karyawan: selectedKaryawan ? selectedKaryawan.nama : searchKaryawan,
+      id_karyawan: targetKaryawan ? targetKaryawan.id : (editId || Date.now()),
+      nama_karyawan: targetKaryawan ? targetKaryawan.nama : searchKaryawan,
       nominal: Number(nominal),
       metode_pembayaran: metode,
       uang_diterima: Number(uangDiterima || nominal),
@@ -226,10 +353,16 @@ export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loadi
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Row 1: Search Employee & Auto Nominal */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-7 relative">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Cari Nama Karyawan <span className="text-rose-500">*</span>
-              </label>
+            <div className="lg:col-span-7 relative" ref={dropdownRef}>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Cari Nama Karyawan <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[11px] font-semibold text-slate-500">
+                  Tersisa <span className="font-bold text-blue-600">{unpaidKaryawanList.length}</span> anggota belum bayar
+                </span>
+              </div>
+
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -237,34 +370,78 @@ export default function Iuran({ iuranList, karyawanList, onSave, onDelete, loadi
                   value={searchKaryawan}
                   onChange={(e) => {
                     setSearchKaryawan(e.target.value);
+                    if (selectedKaryawan && e.target.value !== selectedKaryawan.nama) {
+                      setSelectedKaryawan(null);
+                    }
                     setShowDropdown(true);
                   }}
                   onFocus={() => setShowDropdown(true)}
-                  placeholder="Ketik nama anggota karyawan..."
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                  placeholder="Ketik atau pilih nama anggota yang belum bayar..."
+                  className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
                   required
                 />
+                {searchKaryawan && (
+                  <button
+                    type="button"
+                    onClick={handleClearSelected}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200/60 cursor-pointer"
+                    title="Hapus / Cari Ulang"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
-              {/* Dropdown Suggestions */}
-              {showDropdown && matchingKaryawan.length > 0 && (
-                <div className="absolute z-30 left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden divide-y divide-slate-100 max-h-60 overflow-y-auto">
-                  {matchingKaryawan.map(k => (
-                    <button
-                      key={k.id}
-                      type="button"
-                      onClick={() => handleSelectKaryawan(k)}
-                      className="w-full text-left p-3.5 hover:bg-blue-50/80 transition-colors flex items-center justify-between cursor-pointer"
-                    >
-                      <div>
-                        <div className="text-sm font-bold text-slate-800">{k.nama}</div>
-                        <div className="text-xs text-slate-400">Jabatan: <span className="font-semibold text-blue-600">{k.jabatan}</span></div>
+              {/* Dropdown Suggestions: ONLY unpaid employees */}
+              {showDropdown && (
+                <div className="absolute z-30 left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                  {matchingKaryawan.length > 0 ? (
+                    matchingKaryawan.map(k => (
+                      <button
+                        key={k.id}
+                        type="button"
+                        onClick={() => handleSelectKaryawan(k)}
+                        className="w-full text-left p-3.5 hover:bg-blue-50/80 transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <div>
+                          <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <span>{k.nama}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-amber-50 text-amber-700 border border-amber-200">
+                              Belum Bayar
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-400 mt-0.5">Jabatan: <span className="font-semibold text-blue-600">{k.jabatan}</span></div>
+                        </div>
+                        <div className="text-sm font-extrabold text-blue-600">
+                          {formatRp(k.nominal_iuran)}
+                        </div>
+                      </button>
+                    ))
+                  ) : alreadyPaidMatch ? (
+                    <div className="p-4 bg-emerald-50/70">
+                      <div className="flex items-start gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-bold text-emerald-900">
+                            {alreadyPaidMatch.nama} Sudah Bayar Bulan Ini ({periode})
+                          </div>
+                          <p className="text-[11px] text-emerald-700 mt-1 leading-relaxed">
+                            Nama otomatis disembunyikan untuk mencegah double input. Jika ada salah catat, hapus transaksinya pada tabel <b>Riwayat Pembayaran</b> di bawah agar nama muncul kembali.
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-sm font-extrabold text-blue-600">
-                        {formatRp(k.nominal_iuran)}
-                      </div>
-                    </button>
-                  ))}
+                    </div>
+                  ) : unpaidKaryawanList.length === 0 ? (
+                    <div className="p-5 text-center text-slate-500 text-xs">
+                      <CheckCircle2 className="w-7 h-7 text-emerald-500 mx-auto mb-1.5" />
+                      <span className="font-bold text-slate-800 block text-sm">Semua Anggota Sudah Lunas!</span>
+                      <span>Seluruh anggota telah membayar iuran periode {periode}.</span>
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-slate-400 text-xs">
+                      Tidak ditemukan anggota belum bayar dengan kata kunci "{searchKaryawan}".
+                    </div>
+                  )}
                 </div>
               )}
             </div>

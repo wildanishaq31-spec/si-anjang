@@ -196,13 +196,32 @@ export default function App() {
   };
 
   const handleSaveIuran = async (payload) => {
-    await api.saveIuran(payload);
+    if (payload.isEdit !== 'true' && payload.isEdit !== true) {
+      setIuranList(prev => [
+        {
+          id: payload.dataId || `temp-${Date.now()}`,
+          tanggal: payload.tanggal,
+          id_karyawan: payload.id_karyawan,
+          nama_karyawan: payload.nama_karyawan,
+          periode: payload.periode,
+          nominal: Number(payload.nominal),
+          metode_pembayaran: payload.metode_pembayaran,
+          uang_diterima: Number(payload.uang_diterima),
+          kembalian: Number(payload.kembalian)
+        },
+        ...prev
+      ]);
+    }
+    const res = await api.saveIuran(payload);
     await loadAllData();
+    return res;
   };
 
   const handleDeleteIuran = async (id) => {
-    await api.deleteIuran(id);
+    setIuranList(prev => prev.filter(i => String(i.id) !== String(id)));
+    const res = await api.deleteIuran(id);
     await loadAllData();
+    return res;
   };
 
   const handleSavePengeluaran = async (payload) => {
