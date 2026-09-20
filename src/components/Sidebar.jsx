@@ -26,6 +26,9 @@ export default function Sidebar({
   const isTamu = role === 'Tamu';
   const isAdmin = role === 'Superadmin';
 
+  const fullName = currentUser?.fullname || currentUser?.username || 'User';
+  const initial = fullName.charAt(0).toUpperCase();
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allow: true },
     { id: 'karyawan', label: 'Data Karyawan', icon: Users, allow: isAdmin },
@@ -126,18 +129,30 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Footer / User & Logout */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
-          <div className="mb-3 px-2 flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Sesi:</span>
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Online
-            </span>
+        {/* Footer / User Profile & Logout */}
+        <div className="p-4 border-t border-slate-800/80 bg-slate-950/40 space-y-3">
+          {/* User Profile Info Card */}
+          <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-900/90 border border-slate-800">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-md">
+              {currentUser?.photo ? (
+                <img src={currentUser.photo} alt={fullName} className="w-full h-full object-cover rounded-full" />
+              ) : (
+                initial
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-white truncate leading-tight">{fullName}</div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">{role}</span>
+                <span className="text-slate-600">•</span>
+                <span className="text-[10px] font-bold text-emerald-400">Online</span>
+              </div>
+            </div>
           </div>
 
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-400 hover:text-white hover:bg-rose-600/20 transition-all border border-rose-500/20"
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-400 hover:text-white hover:bg-rose-600/20 transition-all border border-rose-500/20 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Keluar Aplikasi</span>
