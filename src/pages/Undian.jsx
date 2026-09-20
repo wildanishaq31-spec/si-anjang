@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Shuffle,
   Award,
@@ -9,7 +9,9 @@ import {
   PlusCircle,
   Clock,
   X,
-  CheckCircle2
+  CheckCircle2,
+  Search,
+  Info
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import Swal from 'sweetalert2';
@@ -19,17 +21,75 @@ export default function Undian({ undianList, karyawanList, onSave, onDelete, loa
   const [displayName, setDisplayName] = useState('? ? ? ? ?');
   const [selectedWinner, setSelectedWinner] = useState(null);
 
-  // Manual Request Modal
+  // Manual Request Modal State
   const [modalManual, setModalManual] = useState(false);
+  const [searchKaryawan, setSearchKaryawan] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [manualKaryawanId, setManualKaryawanId] = useState('');
-  const [manualPeriode, setManualPeriode] = useState(() => {
-    const d = new Date();
-    const bln = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    return `${bln[d.getMonth()]} ${d.getFullYear()}`;
-  });
 
-  // Eligible candidates (status === 'Belum')
-  const eligibleCandidates = (karyawanList || []).filter(k => k.status === 'Belum');
+  // Sisa bulan kosong yang belum terisi di daftar undian
+  const availablePeriods = useMemo(() => {
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const usedPeriods = new Set((undianList || []).map(u => (u.periode || '').trim().toLowerCase()));
+
+    const list = [];
+    // Periksa tahun sekarang dan tahun depan
+    [curYear, curYear + 1].forEach(year => {
+      months.forEach((m) => {
+        const p = `${m} ${year}`;
+        if (!usedPeriods.has(p.toLowerCase())) {
+          list.push(p);
+        }
+      });
+    });
+
+    return list.length > 0 ? list : [`${months[now.getMonth()]} ${curYear}`];
+  }, [undianList]);
+
+  const [manualPeriode, setManualPeriode] = useState(() => availablePeriods[0] || 'September 2026');
+
+  // Update default period when availablePeriods updates
+  useEffect(() => {
+    if (availablePeriods.length > 0 && !availablePeriods.includes(manualPeriode)) {
+      setManualPeriode(availablePeriods[0]);
+    }
+  }, [availablePeriods]);
+
+  // Eligible candidates: HANYA YANG BERSTATUS 'BELUM'
+  const eligibleCandidates = useMemo(() => {
+    return (karyawanList || []).filter(k => k.status === 'Belum');
+  }, [karyawanList]);
+
+  // Autocomplete matching untuk modal manual (HANYA YANG BELUM)
+  const matchingManualCandidates = useMemo(() => {
+    if (!searchKaryawan.trim()) {
+      return eligibleCandidates.slice(0, 8);
+    }
+    return eligibleCandidates.filter(k =>
+      k.nama.toLowerCase().includes(searchKaryawan.toLowerCase())
+    ).slice(0, 8);
+  }, [eligibleCandidates, searchKaryawan]);
+
+  const openManualModal = () => {
+    setSearchKaryawan('');
+    setSelectedCandidate(null);
+    setManualKaryawanId('');
+    setShowDropdown(false);
+    if (availablePeriods.length > 0) {
+      setManualPeriode(availablePeriods[0]);
+    }
+    setModalManual(true);
+  };
+
+  const handleSelectCandidate = (k) => {
+    setSelectedCandidate(k);
+    setSearchKaryawan(k.nama);
+    setManualKaryawanId(k.id);
+    setShowDropdown(false);
+  };
 
   const startKocok = () => {
     if (eligibleCandidates.length === 0) {
@@ -112,9 +172,9 @@ export default function Undian({ undianList, karyawanList, onSave, onDelete, loa
 
   const handleManualSubmit = async (e) => {
     e.preventDefault();
-    const candidate = (karyawanList || []).find(k => String(k.id) === String(manualKaryawanId));
+    const candidate = eligibleCandidates.find(k => String(k.id) === String(manualKaryawanId));
     if (!candidate) {
-      Swal.fire({ icon: 'warning', title: 'Pilih Anggota', text: 'Silakan pilih karyawan yang mengajukan diri!' });
+      Swal.fire({ icon: 'warning', title: 'Pilih Anggota', text: 'Silakan cari dan pilih anggota karyawan yang berstatus belum!' });
       return;
     }
 
@@ -131,6 +191,9 @@ export default function Undian({ undianList, karyawanList, onSave, onDelete, loa
 
       setModalManual(false);
       setManualKaryawanId('');
+      setSearchKaryawan('');
+      setSelectedCandidate(null);
+
       Swal.fire({
         icon: 'success',
         title: 'Tuan Rumah Ditetapkan',
@@ -218,7 +281,7 @@ export default function Undian({ undianList, karyawanList, onSave, onDelete, loa
             </button>
 
             <button
-              onClick={() => setModalManual(true)}
+              onClick={openManualModal}
               className="px-5 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-xl border border-white/15 backdrop-blur-xs transition-all flex items-center gap-2 cursor-pointer"
             >
               <PlusCircle className="w-4 h-4 text-blue-300" />
@@ -293,7 +356,7 @@ export default function Undian({ undianList, karyawanList, onSave, onDelete, loa
         </div>
       </div>
 
-      {/* Modal Manual Request */}
+      {/* Modal Manual Request (SEARCHABLE DENGAN FILTER HANYA YG BELUM) */}
       {modalManual && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-150">
@@ -301,61 +364,102 @@ export default function Undian({ undianList, karyawanList, onSave, onDelete, loa
               <h3 className="font-bold text-base text-slate-900">Request Tuan Rumah Manual</h3>
               <button
                 onClick={() => setModalManual(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleManualSubmit} className="space-y-4 pt-4">
+              {/* Searchable Karyawan Input (Hanya Yg Belum) */}
+              <div className="relative">
+                <label className="block text-xs font-bold text-slate-700 tracking-tight mb-1.5">
+                  Cari Karyawan (Hanya Yg Belum) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchKaryawan}
+                    onChange={(e) => {
+                      setSearchKaryawan(e.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    placeholder="Ketik & pilih nama karyawan..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Dropdown Suggestions (Hanya Yg Belum) */}
+                {showDropdown && matchingManualCandidates.length > 0 && (
+                  <div className="absolute z-30 left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden divide-y divide-slate-100 max-h-56 overflow-y-auto">
+                    {matchingManualCandidates.map(k => (
+                      <button
+                        key={k.id}
+                        type="button"
+                        onClick={() => handleSelectCandidate(k)}
+                        className="w-full text-left p-3 hover:bg-blue-50/80 transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <div>
+                          <div className="text-sm font-bold text-slate-800">{k.nama}</div>
+                          <div className="text-xs text-slate-400">
+                            Jabatan: <span className="font-semibold text-blue-600">{k.jabatan}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                          Belum
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Pilih Periode Tuan Rumah */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Pilih Anggota Karyawan
+                <label className="block text-xs font-bold text-slate-700 tracking-tight mb-1.5">
+                  Pilih Periode Tuan Rumah
                 </label>
                 <select
-                  value={manualKaryawanId}
-                  onChange={(e) => setManualKaryawanId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:bg-white focus:outline-none focus:border-blue-600"
-                  required
+                  value={manualPeriode}
+                  onChange={(e) => setManualPeriode(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-blue-600 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                 >
-                  <option value="">-- Pilih Anggota --</option>
-                  {(karyawanList || []).map(k => (
-                    <option key={k.id} value={k.id}>
-                      {k.nama} ({k.jabatan}) - Status: {k.status}
+                  {availablePeriods.map(p => (
+                    <option key={p} value={p} className="text-slate-800 font-semibold">
+                      {p}
                     </option>
                   ))}
                 </select>
+
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1.5 font-medium">
+                  <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>Otomatis menampilkan daftar sisa bulan kosong yang belum terisi.</span>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Periode Anjangsana
-                </label>
-                <input
-                  type="text"
-                  value={manualPeriode}
-                  onChange={(e) => setManualPeriode(e.target.value)}
-                  placeholder="Contoh: Juni 2026"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:border-blue-600"
-                  required
-                />
+              {/* Catatan Kuning */}
+              <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200/80 text-xs text-amber-800 leading-relaxed font-medium flex items-start gap-2">
+                <span className="text-sm">💡</span>
+                <span>
+                  Anggota yang ditetapkan manual akan otomatis ditandai statusnya menjadi <b>Sudah</b> dalam siklus undian.
+                </span>
               </div>
 
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-xs text-amber-800 leading-relaxed font-medium">
-                💡 Anggota yang ditetapkan manual akan otomatis ditandai statusnya menjadi <b>Sudah</b> dalam siklus undian.
-              </div>
-
+              {/* Tombol Aksi */}
               <div className="pt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setModalManual(false)}
-                  className="w-1/2 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 cursor-pointer"
+                  className="w-1/2 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 cursor-pointer transition-all"
                 >
                   Tetapkan Tuan Rumah
                 </button>
