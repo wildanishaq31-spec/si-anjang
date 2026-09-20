@@ -1,16 +1,49 @@
-# React + Vite
+# E-Anjangsana (SI-ANJANG) — UPTD Puskesmas Cermee
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplikasi Progressive Web App (PWA) Manajemen Kasir, Iuran, Pengeluaran, dan Undian Tuan Rumah Anjangsana untuk Pegawai UPTD Puskesmas Cermee.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Fitur Utama
+- **Progressive Web App (PWA):** Dapat diinstall di HP Android / iOS layaknya aplikasi native, responsif dengan navigasi bottom bar melengkung.
+- **Dashboard Interaktif:** Rekapitulasi mutasi kas riil, penerimaan per jabatan (PNS, P3K, P3KPWD, P3KPW, Kontrak), daftar tunggakan, dan riwayat aktivitas kas.
+- **Manajemen Iuran Otomatis:**
+  - Deteksi otomatis anggota yang belum bayar.
+  - Filter pencarian cerdas untuk meminimalisir *double input*.
+  - Kalkulator kembalian dan dukungan metode Tunai / Transfer Bank.
+- **Manajemen Pengeluaran Kas:** Pencatatan uang keluar beserta kategori operasional anjangsana.
+- **Sistem Undian Tuan Rumah:**
+  - Pengacakan acak otomatis dengan animasi confetti perayaan pemenang.
+  - Opsi penetapan manual untuk anggota berstatus *Belum* dengan filter periode bulan kosong otomatis.
+- **Rekapitulasi & Broadcast WhatsApp:**
+  - Pengelompokan iuran bulanan / tahunan per anggota.
+  - Ekspor data rekapitulasi ke format Excel (`.xlsx`).
+  - Template broadcast pengingat tunggakan langsung ke grup WhatsApp.
+- **Kompatibilitas Google Spreadsheet & GAS Backend:** Menggunakan database live Google Spreadsheet dengan REST API Google Apps Script.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 Panduan Instalasi Lokal
 
-## Expanding the Oxlint configuration
+```bash
+# Clone repository
+git clone https://github.com/wildanishaq31-spec/si-anjang.git
+cd si-anjang
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+# Install dependencies
+npm install
+
+# Jalankan server lokal
+npm run dev
+```
+
+---
+
+## 🌐 Deployment ke Vercel
+
+1. Buka [vercel.com](https://vercel.com/) dan import repository **`wildanishaq31-spec/si-anjang`**.
+2. Pada bagian **Environment Variables**, tambahkan:
+   - `VITE_GAS_API_URL` : `[URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA]`
+3. Klik **Deploy**.
+4. Hubungkan domain kustom Anda: `anjangsana.pkmcermee.my.id`.
+
