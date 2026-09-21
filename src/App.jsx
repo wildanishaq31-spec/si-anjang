@@ -12,7 +12,7 @@ import Undian from './pages/Undian';
 import Rekap from './pages/Rekap';
 import Setting from './pages/Setting';
 import UserManagement from './pages/User';
-import { api } from './services/api';
+import { api, SEED_KARYAWAN, SEED_USERS, SEED_SETTINGS, calculateLocalDashboardStats } from './services/api';
 import Swal from 'sweetalert2';
 
 export default function App() {
@@ -28,17 +28,30 @@ export default function App() {
 
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
 
-  // Data states
-  const [dashboardStats, setDashboardStats] = useState(null);
-  const [karyawanList, setKaryawanList] = useState([]);
-  const [iuranList, setIuranList] = useState([]);
-  const [pengeluaranList, setPengeluaranList] = useState([]);
-  const [undianList, setUndianList] = useState([]);
-  const [userList, setUserList] = useState([]);
-  const [settings, setSettings] = useState(null);
+  // Data states initialized IMMEDIATELY from Cache (0ms Instant Load)
+  const [karyawanList, setKaryawanList] = useState(() => api.getLocal('karyawan', SEED_KARYAWAN));
+  const [iuranList, setIuranList] = useState(() => api.getLocal('iuran', []));
+  const [pengeluaranList, setPengeluaranList] = useState(() => api.getLocal('pengeluaran', []));
+  const [undianList, setUndianList] = useState(() => api.getLocal('undian', []));
+  const [userList, setUserList] = useState(() => api.getLocal('users', SEED_USERS));
+  const [settings, setSettings] = useState(() => api.getLocal('settings', SEED_SETTINGS));
+
+  // Pre-calculate instant dashboard stats immediately
+  const [dashboardStats, setDashboardStats] = useState(() => api.getLocalDashboardStats());
+
+  // Auto recalculate local dashboard stats whenever local lists change
+  const refreshLocalDashboard = useCallback((customData = {}) => {
+    const freshStats = calculateLocalDashboardStats({
+      karyawan: customData.karyawan || karyawanList,
+      iuran: customData.iuran || iuranList,
+      pengeluaran: customData.pengeluaran || pengeluaranList,
+      settings: customData.settings || settings
+    });
+    setDashboardStats(freshStats);
+  }, [karyawanList, iuranList, pengeluaranList, settings]);
 
   // Auto Logout Idle Timer (15 Menit)
   useEffect(() => {
@@ -73,50 +86,45 @@ export default function App() {
     };
   }, [currentUser]);
 
-  // Load all core data
-  const loadAllData = useCallback(async () => {
-    setLoading(true);
+  // Background SWR Data Synchronizer (Non-blocking)
+  const syncServerData = useCallback(async () => {
+    setIsSyncing(true);
     try {
-      const [statsRes, karRes, iurRes, outRes, undRes, setRes] = await Promise.all([
-        api.getDashboardStats(),
-        api.getKaryawan(),
-        api.getIuran(),
-        api.getPengeluaran(),
-        api.getUndian(),
-        api.getSettings()
-      ]);
-
-      if (statsRes?.success) setDashboardStats(statsRes.data);
-      if (karRes?.success) setKaryawanList(karRes.data);
-      if (iurRes?.success) setIuranList(iurRes.data);
-      if (outRes?.success) setPengeluaranList(outRes.data);
-      if (undRes?.success) setUndianList(undRes.data);
-      if (setRes?.success) setSettings(setRes.data);
-
-      if (currentUser?.role === 'Superadmin') {
-        const usersRes = await api.getUsers();
-        if (usersRes?.success) setUserList(usersRes.data);
+      const res = await api.syncAllData();
+      if (res?.success && res.data) {
+        if (res.data.karyawan) setKaryawanList(res.data.karyawan);
+        if (res.data.iuran) setIuranList(res.data.iuran);
+        if (res.data.pengeluaran) setPengeluaranList(res.data.pengeluaran);
+        if (res.data.undian) setUndianList(res.data.undian);
+        if (res.data.settings) setSettings(res.data.settings);
+        if (res.data.users) setUserList(res.data.users);
+        if (res.data.stats) setDashboardStats(res.data.stats);
       }
     } catch (err) {
-      console.warn('Data load error:', err);
+      console.warn('Silent sync error:', err);
     } finally {
-      setLoading(false);
+      setIsSyncing(false);
     }
-  }, [currentUser]);
+  }, []);
 
   useEffect(() => {
     if (currentUser) {
-      loadAllData();
+      // Immediate local computation
+      refreshLocalDashboard();
+      // Background non-blocking sync
+      syncServerData();
     }
-  }, [currentUser, loadAllData]);
+  }, [currentUser]);
 
-  // Login handler
+  // Login handler (Instant redirect)
   const handleLogin = async (username, password) => {
     const res = await api.login(username, password);
     if (res.success) {
       setCurrentUser(res.user);
       sessionStorage.setItem('anjangsana_session', JSON.stringify(res.user));
       setActivePage('dashboard');
+      // Trigger background sync immediately after login
+      setTimeout(syncServerData, 100);
     }
     return res;
   };
@@ -140,7 +148,7 @@ export default function App() {
       text: 'Anda masuk dalam mode pantau (hanya melihat Dashboard).',
       toast: true,
       position: 'top-end',
-      timer: 3000,
+      timer: 2000,
       showConfirmButton: false
     });
   };
@@ -148,7 +156,7 @@ export default function App() {
   // Logout handler
   const handleLogout = async () => {
     if (currentUser && currentUser.role !== 'Tamu') {
-      await api.logout(currentUser.username);
+      api.logout(currentUser.username);
     }
     setCurrentUser(null);
     sessionStorage.removeItem('anjangsana_session');
@@ -179,95 +187,160 @@ export default function App() {
     return count;
   }, [karyawanList, iuranList]);
 
-  // CRUD Dispatchers
+  // Optimistic Instant CRUD Dispatchers (0ms response)
   const handleSaveKaryawan = async (payload) => {
-    await api.saveKaryawan(payload);
-    await loadAllData();
+    let nextList = [...karyawanList];
+    if (payload.isEdit === 'true' || payload.isEdit === true) {
+      const idx = nextList.findIndex(k => String(k.id) === String(payload.dataId));
+      if (idx !== -1) {
+        nextList[idx] = { ...nextList[idx], nama: payload.nama, jabatan: payload.jabatan, nominal_iuran: Number(payload.nominal_iuran), status: payload.status };
+      }
+    } else {
+      nextList.push({
+        id: payload.id || String(Date.now()),
+        nama: payload.nama,
+        jabatan: payload.jabatan,
+        nominal_iuran: Number(payload.nominal_iuran),
+        status: payload.status || 'Belum'
+      });
+    }
+    setKaryawanList(nextList);
+    refreshLocalDashboard({ karyawan: nextList });
+    api.saveKaryawan(payload);
   };
 
   const handleDeleteKaryawan = async (id) => {
-    await api.deleteKaryawan(id);
-    await loadAllData();
+    const nextList = karyawanList.filter(k => String(k.id) !== String(id));
+    setKaryawanList(nextList);
+    refreshLocalDashboard({ karyawan: nextList });
+    api.deleteKaryawan(id);
   };
 
   const handleResetStatusKaryawan = async () => {
-    await api.resetStatusKaryawan();
-    await loadAllData();
+    const nextList = karyawanList.map(k => ({ ...k, status: 'Belum' }));
+    setKaryawanList(nextList);
+    refreshLocalDashboard({ karyawan: nextList });
+    api.resetStatusKaryawan();
   };
 
   const handleSaveIuran = async (payload) => {
-    if (payload.isEdit !== 'true' && payload.isEdit !== true) {
-      setIuranList(prev => [
-        {
-          id: payload.dataId || `temp-${Date.now()}`,
-          tanggal: payload.tanggal,
-          id_karyawan: payload.id_karyawan,
-          nama_karyawan: payload.nama_karyawan,
-          periode: payload.periode,
-          nominal: Number(payload.nominal),
-          metode_pembayaran: payload.metode_pembayaran,
-          uang_diterima: Number(payload.uang_diterima),
-          kembalian: Number(payload.kembalian)
-        },
-        ...prev
-      ]);
+    const newItem = {
+      id: payload.dataId || Date.now(),
+      tanggal: payload.tanggal,
+      id_karyawan: payload.id_karyawan,
+      nama_karyawan: payload.nama_karyawan,
+      periode: payload.periode,
+      nominal: Number(payload.nominal),
+      metode_pembayaran: payload.metode_pembayaran,
+      uang_diterima: Number(payload.uang_diterima),
+      kembalian: Number(payload.kembalian)
+    };
+
+    let nextList = [...iuranList];
+    if (payload.isEdit === 'true' || payload.isEdit === true) {
+      const idx = nextList.findIndex(i => String(i.id) === String(payload.dataId));
+      if (idx !== -1) nextList[idx] = newItem;
+    } else {
+      nextList = [newItem, ...nextList];
     }
-    const res = await api.saveIuran(payload);
-    await loadAllData();
-    return res;
+    setIuranList(nextList);
+    refreshLocalDashboard({ iuran: nextList });
+    api.saveIuran(payload);
+    return { success: true };
   };
 
   const handleDeleteIuran = async (id) => {
-    setIuranList(prev => prev.filter(i => String(i.id) !== String(id)));
-    const res = await api.deleteIuran(id);
-    await loadAllData();
-    return res;
+    const nextList = iuranList.filter(i => String(i.id) !== String(id));
+    setIuranList(nextList);
+    refreshLocalDashboard({ iuran: nextList });
+    api.deleteIuran(id);
+    return { success: true };
   };
 
   const handleSavePengeluaran = async (payload) => {
-    await api.savePengeluaran(payload);
-    await loadAllData();
+    const newItem = {
+      id: payload.dataId || Date.now(),
+      tanggal: payload.tanggal,
+      keterangan: payload.keterangan,
+      nominal: Number(payload.nominal),
+      kategori: payload.kategori
+    };
+
+    let nextList = [...pengeluaranList];
+    if (payload.isEdit === 'true' || payload.isEdit === true) {
+      const idx = nextList.findIndex(p => String(p.id) === String(payload.dataId));
+      if (idx !== -1) nextList[idx] = newItem;
+    } else {
+      nextList = [newItem, ...nextList];
+    }
+    setPengeluaranList(nextList);
+    refreshLocalDashboard({ pengeluaran: nextList });
+    api.savePengeluaran(payload);
   };
 
   const handleDeletePengeluaran = async (id) => {
-    await api.deletePengeluaran(id);
-    await loadAllData();
+    const nextList = pengeluaranList.filter(p => String(p.id) !== String(id));
+    setPengeluaranList(nextList);
+    refreshLocalDashboard({ pengeluaran: nextList });
+    api.deletePengeluaran(id);
   };
 
   const handleSaveUndian = async (payload) => {
-    await api.saveUndian(payload);
-    await loadAllData();
+    const nextUndian = [
+      {
+        id: Date.now(),
+        tanggal: payload.tanggal,
+        id_karyawan: payload.id_karyawan,
+        nama_pemenang: payload.nama_pemenang,
+        periode: payload.periode
+      },
+      ...undianList
+    ];
+    setUndianList(nextUndian);
+
+    const nextKaryawan = karyawanList.map(k =>
+      String(k.id) === String(payload.id_karyawan) ? { ...k, status: 'Sudah' } : k
+    );
+    setKaryawanList(nextKaryawan);
+    refreshLocalDashboard({ undian: nextUndian, karyawan: nextKaryawan });
+    api.saveUndian(payload);
   };
 
   const handleDeleteUndian = async (id) => {
-    await api.deleteUndian(id);
-    await loadAllData();
+    const item = undianList.find(u => String(u.id) === String(id));
+    const nextUndian = undianList.filter(u => String(u.id) !== String(id));
+    setUndianList(nextUndian);
+
+    if (item && item.id_karyawan) {
+      const nextKaryawan = karyawanList.map(k =>
+        String(k.id) === String(item.id_karyawan) ? { ...k, status: 'Belum' } : k
+      );
+      setKaryawanList(nextKaryawan);
+      refreshLocalDashboard({ undian: nextUndian, karyawan: nextKaryawan });
+    }
+    api.deleteUndian(id);
   };
 
   const handleSaveUser = async (payload) => {
     const res = await api.saveUser(payload);
-    if (res.success) {
-      const usersRes = await api.getUsers();
-      if (usersRes?.success) setUserList(usersRes.data);
-    }
+    setUserList(api.getLocal('users', SEED_USERS));
     return res;
   };
 
   const handleDeleteUser = async (username) => {
     await api.deleteUser(username);
-    const usersRes = await api.getUsers();
-    if (usersRes?.success) setUserList(usersRes.data);
+    setUserList(api.getLocal('users', SEED_USERS));
   };
 
   const handleSaveInfo = async (infoText) => {
-    await api.saveSettingInfo(infoText);
     setSettings(prev => ({ ...prev, info_dashboard: infoText }));
     setDashboardStats(prev => prev ? ({ ...prev, info: infoText }) : prev);
+    api.saveSettingInfo(infoText);
   };
 
   const handleSaveWA = async (templateText) => {
-    await api.saveSettingWA(templateText);
     setSettings(prev => ({ ...prev, wa_template: templateText }));
+    api.saveSettingWA(templateText);
   };
 
   // If not logged in, render Login
@@ -300,13 +373,13 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-72">
-        <Navbar />
+        <Navbar isSyncing={isSyncing} onSync={syncServerData} />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 lg:pb-12">
           {activePage === 'dashboard' && (
             <Dashboard
               stats={dashboardStats}
-              loading={loading}
+              loading={false}
               onNavigate={setActivePage}
               currentUser={currentUser}
             />
@@ -318,7 +391,7 @@ export default function App() {
               onSave={handleSaveKaryawan}
               onDelete={handleDeleteKaryawan}
               onResetAllStatus={handleResetStatusKaryawan}
-              loading={loading}
+              loading={false}
             />
           )}
 
@@ -328,7 +401,7 @@ export default function App() {
               karyawanList={karyawanList}
               onSave={handleSaveIuran}
               onDelete={handleDeleteIuran}
-              loading={loading}
+              loading={false}
             />
           )}
 
@@ -337,7 +410,7 @@ export default function App() {
               pengeluaranList={pengeluaranList}
               onSave={handleSavePengeluaran}
               onDelete={handleDeletePengeluaran}
-              loading={loading}
+              loading={false}
             />
           )}
 
@@ -347,7 +420,7 @@ export default function App() {
               karyawanList={karyawanList}
               onSave={handleSaveUndian}
               onDelete={handleDeleteUndian}
-              loading={loading}
+              loading={false}
             />
           )}
 
@@ -356,7 +429,7 @@ export default function App() {
               iuranList={iuranList}
               karyawanList={karyawanList}
               waTemplate={settings?.wa_template}
-              loading={loading}
+              loading={false}
             />
           )}
 
@@ -366,7 +439,7 @@ export default function App() {
               onSaveInfo={handleSaveInfo}
               onSaveWA={handleSaveWA}
               apiService={api}
-              loading={loading}
+              loading={false}
             />
           )}
 
@@ -375,7 +448,7 @@ export default function App() {
               userList={userList}
               onSave={handleSaveUser}
               onDelete={handleDeleteUser}
-              loading={loading}
+              loading={false}
             />
           )}
         </main>

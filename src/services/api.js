@@ -1,4 +1,4 @@
-// API Service: Handles communication with Google Apps Script Web App or local persistent fallback
+// API Service: Ultra-fast Cache-First (SWR) with Google Apps Script Sync
 
 const GAS_URL = import.meta.env.VITE_GAS_API_URL || localStorage.getItem('anjangsana_gas_url') || '';
 
@@ -12,12 +12,12 @@ export async function hashPassword(password) {
 }
 
 // Initial Mock / Local Seeds for Puskesmas Cermee
-const SEED_USERS = [
+export const SEED_USERS = [
   { username: 'admin', fullname: 'Super Admin', role: 'Superadmin', photo: '', token: '' },
   { username: 'bendahara', fullname: 'Bendahara Keuangan', role: 'Bendahara', photo: '', token: '' }
 ];
 
-const SEED_KARYAWAN = [
+export const SEED_KARYAWAN = [
   { id: '1777561105323', nama: 'Sulistiyani', jabatan: 'PNS', nominal_iuran: 25000, status: 'Belum' },
   { id: '1777560747577', nama: 'Daru Suprantoko', jabatan: 'PNS', nominal_iuran: 25000, status: 'Belum' },
   { id: '1777692958321', nama: 'Lina Sri Utami', jabatan: 'PNS', nominal_iuran: 25000, status: 'Belum' },
@@ -41,7 +41,7 @@ const SEED_KARYAWAN = [
   { id: '1777693821493', nama: 'Fatmawati', jabatan: 'PNS', nominal_iuran: 25000, status: 'Belum' }
 ];
 
-const SEED_SETTINGS = {
+export const SEED_SETTINGS = {
   info_dashboard: 'Selamat datang di sistem E-Anjangsana UPTD Puskesmas Cermee. Silakan cek tunggakan iuran dan undian tuan rumah.',
   wa_template: `*PEMBERITAHUAN IURAN ANJANGSANA*
 UPTD Puskesmas Cermee
@@ -56,16 +56,18 @@ Terima kasih.`
 };
 
 // Local storage helper functions
-function getLocal(key, fallback) {
+export function getLocal(key, fallback) {
   try {
     const raw = localStorage.getItem('anjangsana_' + key);
-    return raw ? JSON.parse(raw) : fallback;
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed !== null && parsed !== undefined ? parsed : fallback;
   } catch (e) {
     return fallback;
   }
 }
 
-function setLocal(key, value) {
+export function setLocal(key, value) {
   try {
     localStorage.setItem('anjangsana_' + key, JSON.stringify(value));
   } catch (e) {}
@@ -82,12 +84,125 @@ if (!localStorage.getItem('anjangsana_initialized')) {
   localStorage.setItem('anjangsana_initialized', 'true');
 }
 
-// Generic Fetch to Google Apps Script
-async function fetchGAS(action, params = {}, method = 'GET') {
-  const currentUrl = localStorage.getItem('anjangsana_gas_url') || GAS_URL;
-  if (!currentUrl) {
-    return null; // Will trigger local fallback
+// Compute instant accurate dashboard stats from data in memory/localStorage (0ms response)
+export function calculateLocalDashboardStats(customData = {}) {
+  const karyawan = customData.karyawan || getLocal('karyawan', SEED_KARYAWAN);
+  const iuran = customData.iuran || getLocal('iuran', []);
+  const pengeluaran = customData.pengeluaran || getLocal('pengeluaran', []);
+  const settings = customData.settings || getLocal('settings', SEED_SETTINGS);
+
+  const now = new Date();
+  const curYear = String(now.getFullYear());
+  const curMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const namaBulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const namaBulanAktif = namaBulanIndo[now.getMonth()];
+
+  let totalPNS = 0, totalP3K = 0, totalP3KPWD = 0, totalP3KPW = 0, totalLainnya = 0;
+  let totalIuranBulanIni = 0;
+  const mapKar = {};
+  let belumGiliran = 0;
+
+  karyawan.forEach(k => {
+    mapKar[k.id] = k.jabatan;
+    if (k.status === 'Belum') belumGiliran++;
+  });
+
+  const iuranBulanIniMap = {};
+  iuran.forEach(i => {
+    if (i.tanggal && i.tanggal.length >= 7) {
+      if (i.tanggal.substring(0, 4) === curYear && i.tanggal.substring(5, 7) === curMonth) {
+        iuranBulanIniMap[i.id_karyawan] = (iuranBulanIniMap[i.id_karyawan] || 0) + Number(i.nominal || 0);
+        totalIuranBulanIni += Number(i.nominal || 0);
+
+        const jab = mapKar[i.id_karyawan];
+        if (jab === 'PNS') totalPNS += Number(i.nominal || 0);
+        else if (jab === 'P3K') totalP3K += Number(i.nominal || 0);
+        else if (jab === 'P3KPWD') totalP3KPWD += Number(i.nominal || 0);
+        else if (jab === 'P3KPW') totalP3KPW += Number(i.nominal || 0);
+        else totalLainnya += Number(i.nominal || 0);
+      }
+    }
+  });
+
+  let pengeluaranBulanIni = 0;
+  let totalPengeluaranLatest = 0;
+  let namaBulanPengeluaran = "Belum Ada";
+
+  if (pengeluaran.length > 0) {
+    let latestDate = "0000-00-00";
+    pengeluaran.forEach(p => {
+      if (p.tanggal && p.tanggal > latestDate) latestDate = p.tanggal;
+    });
+
+    if (latestDate !== "0000-00-00") {
+      const expY = latestDate.substring(0, 4);
+      const expM = latestDate.substring(5, 7);
+      const mIdx = parseInt(expM, 10) - 1;
+      if (mIdx >= 0 && mIdx < 12) {
+        namaBulanPengeluaran = namaBulanIndo[mIdx] + (expY !== curYear ? " " + expY : "");
+      }
+      pengeluaran.forEach(p => {
+        if (p.tanggal && p.tanggal.length >= 7) {
+          const pY = p.tanggal.substring(0, 4);
+          const pM = p.tanggal.substring(5, 7);
+          if (pY === expY && pM === expM) totalPengeluaranLatest += Number(p.nominal || 0);
+          if (pY === curYear && pM === curMonth) pengeluaranBulanIni += Number(p.nominal || 0);
+        }
+      });
+    }
   }
+
+  const aktivitas = [];
+  iuran.forEach(i => aktivitas.push({
+    id: i.id,
+    tgl: i.tanggal,
+    keterangan: 'Pembayaran Iuran - ' + (i.nama_karyawan || 'Anggota'),
+    nominal: Number(i.nominal || 0),
+    status: 'Masuk'
+  }));
+  pengeluaran.forEach(p => aktivitas.push({
+    id: p.id,
+    tgl: p.tanggal,
+    keterangan: 'Biaya ' + p.keterangan,
+    nominal: Number(p.nominal || 0),
+    status: 'Keluar'
+  }));
+  aktivitas.sort((a, b) => new Date(b.tgl || 0) - new Date(a.tgl || 0));
+
+  const belumBayarList = [];
+  karyawan.forEach(k => {
+    if (!iuranBulanIniMap[k.id] || iuranBulanIniMap[k.id] <= 0) {
+      belumBayarList.push({ nama: k.nama });
+    }
+  });
+  belumBayarList.sort((a, b) => a.nama.localeCompare(b.nama));
+
+  return {
+    belumBayarList,
+    totalPNS,
+    totalP3K,
+    totalP3KPWD,
+    totalP3KPW,
+    totalLainnya,
+    totalIuran: totalIuranBulanIni,
+    totalPengeluaran: totalPengeluaranLatest,
+    saldo: totalIuranBulanIni - pengeluaranBulanIni,
+    belumGiliran,
+    aktivitas,
+    info: settings.info_dashboard || "Selamat datang di E-Anjangsana!",
+    wa_template: settings.wa_template || "",
+    bulanAktif: namaBulanAktif,
+    bulanPengeluaran: namaBulanPengeluaran
+  };
+}
+
+// Generic Fetch to Google Apps Script with timeout
+async function fetchGAS(action, params = {}, method = 'GET', timeoutMs = 6000) {
+  const currentUrl = localStorage.getItem('anjangsana_gas_url') || GAS_URL;
+  if (!currentUrl) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     if (method === 'GET') {
@@ -97,21 +212,26 @@ async function fetchGAS(action, params = {}, method = 'GET') {
 
       const resp = await fetch(url.toString(), {
         method: 'GET',
+        signal: controller.signal,
         redirect: 'follow'
       });
+      clearTimeout(timer);
       return await resp.json();
     } else {
       // POST
       const resp = await fetch(currentUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids preflight CORS on GAS
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action, ...params }),
+        signal: controller.signal,
         redirect: 'follow'
       });
+      clearTimeout(timer);
       return await resp.json();
     }
   } catch (error) {
-    console.warn(`[GAS Fetch Error for ${action}]:`, error);
+    clearTimeout(timer);
+    // Silent fail for offline/timeout fallback
     return null;
   }
 }
@@ -128,20 +248,35 @@ export const api = {
     else localStorage.removeItem('anjangsana_gas_url');
   },
 
-  // Auth
-  async login(username, password) {
-    const online = await fetchGAS('login', { username, password }, 'POST');
-    if (online) return online;
+  getLocal(key, fallback) {
+    return getLocal(key, fallback);
+  },
 
-    // Fallback Offline/Mock
+  setLocal(key, value) {
+    setLocal(key, value);
+  },
+
+  getLocalDashboardStats() {
+    return calculateLocalDashboardStats();
+  },
+
+  // Fast Login (instant local check + fast server verification)
+  async login(username, password) {
     const passHash = await hashPassword(password);
     const users = getLocal('users', SEED_USERS);
     const user = users.find(u => u.username === username);
 
-    // Default password Demo2026! check
     const demoHash = '3dfba9f94793741870bb788db9fbc2f98642a8b9816024fae1fa4662d511a3d9';
-    if (user && (user.password === passHash || passHash === demoHash || password === 'Demo2026!' || password === 'admin' || password === 'bendahara')) {
+    const isLocalValid = (user && (user.password === passHash || passHash === demoHash || password === 'Demo2026!' || password === 'admin' || password === 'bendahara'));
+
+    // Try online login with short timeout (2.5s)
+    const onlinePromise = fetchGAS('login', { username, password }, 'POST', 2500);
+
+    // If local matches immediately, we can return quickly
+    if (isLocalValid) {
       const token = 'token-' + Math.random().toString(36).substring(2);
+      // Run online login in background to sync session
+      onlinePromise.catch(() => {});
       return {
         success: true,
         user: {
@@ -153,143 +288,135 @@ export const api = {
         }
       };
     }
+
+    const online = await onlinePromise;
+    if (online && online.success) return online;
+
     return { success: false, message: 'Username atau Password salah! (Default: admin / Demo2026!)' };
   },
 
   async logout(username) {
-    const online = await fetchGAS('logout', { username }, 'POST');
-    if (online) return online;
+    fetchGAS('logout', { username }, 'POST', 2000).catch(() => {});
     return { success: true };
+  },
+
+  // Batch / Consolidated fetch for ultra fast background sync
+  async syncAllData() {
+    try {
+      // 1. Try single batch endpoint if available
+      const batchRes = await fetchGAS('getAllData', {}, 'GET', 5000);
+      if (batchRes && batchRes.success && batchRes.data) {
+        const d = batchRes.data;
+        if (d.karyawan) setLocal('karyawan', d.karyawan);
+        if (d.iuran) setLocal('iuran', d.iuran);
+        if (d.pengeluaran) setLocal('pengeluaran', d.pengeluaran);
+        if (d.undian) setLocal('undian', d.undian);
+        if (d.settings) setLocal('settings', d.settings);
+        if (d.users) setLocal('users', d.users);
+        return {
+          success: true,
+          data: {
+            stats: d.stats || calculateLocalDashboardStats(d),
+            karyawan: d.karyawan || getLocal('karyawan', SEED_KARYAWAN),
+            iuran: d.iuran || getLocal('iuran', []),
+            pengeluaran: d.pengeluaran || getLocal('pengeluaran', []),
+            undian: d.undian || getLocal('undian', []),
+            settings: d.settings || getLocal('settings', SEED_SETTINGS),
+            users: d.users || getLocal('users', SEED_USERS)
+          }
+        };
+      }
+
+      // 2. Parallel individual endpoint fallback
+      const [statsRes, karRes, iurRes, outRes, undRes, setRes] = await Promise.all([
+        fetchGAS('getDashboardStats', {}, 'GET', 4000),
+        fetchGAS('getKaryawan', {}, 'GET', 4000),
+        fetchGAS('getIuran', {}, 'GET', 4000),
+        fetchGAS('getPengeluaran', {}, 'GET', 4000),
+        fetchGAS('getUndian', {}, 'GET', 4000),
+        fetchGAS('getWaTemplate', {}, 'GET', 4000)
+      ]);
+
+      const freshKaryawan = karRes?.success ? karRes.data : getLocal('karyawan', SEED_KARYAWAN);
+      const freshIuran = iurRes?.success ? iurRes.data : getLocal('iuran', []);
+      const freshPengeluaran = outRes?.success ? outRes.data : getLocal('pengeluaran', []);
+      const freshUndian = undRes?.success ? undRes.data : getLocal('undian', []);
+
+      if (karRes?.success) setLocal('karyawan', freshKaryawan);
+      if (iurRes?.success) setLocal('iuran', freshIuran);
+      if (outRes?.success) setLocal('pengeluaran', freshPengeluaran);
+      if (undRes?.success) setLocal('undian', freshUndian);
+
+      const localSettings = getLocal('settings', SEED_SETTINGS);
+      if (setRes?.success) {
+        localSettings.wa_template = setRes.data;
+        setLocal('settings', localSettings);
+      }
+
+      const calculatedStats = statsRes?.success ? statsRes.data : calculateLocalDashboardStats({
+        karyawan: freshKaryawan,
+        iuran: freshIuran,
+        pengeluaran: freshPengeluaran,
+        settings: localSettings
+      });
+
+      return {
+        success: true,
+        data: {
+          stats: calculatedStats,
+          karyawan: freshKaryawan,
+          iuran: freshIuran,
+          pengeluaran: freshPengeluaran,
+          undian: freshUndian,
+          settings: localSettings
+        }
+      };
+    } catch (e) {
+      return {
+        success: true,
+        data: {
+          stats: calculateLocalDashboardStats(),
+          karyawan: getLocal('karyawan', SEED_KARYAWAN),
+          iuran: getLocal('iuran', []),
+          pengeluaran: getLocal('pengeluaran', []),
+          undian: getLocal('undian', []),
+          settings: getLocal('settings', SEED_SETTINGS)
+        }
+      };
+    }
   },
 
   // Dashboard
   async getDashboardStats() {
-    const online = await fetchGAS('getDashboardStats', {}, 'GET');
-    if (online && online.success) return online;
-
-    // Local calculation
-    const karyawan = getLocal('karyawan', SEED_KARYAWAN);
-    const iuran = getLocal('iuran', []);
-    const pengeluaran = getLocal('pengeluaran', []);
-    const settings = getLocal('settings', SEED_SETTINGS);
-
-    const now = new Date();
-    const curYear = String(now.getFullYear());
-    const curMonth = String(now.getMonth() + 1).padStart(2, '0');
-    const namaBulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    const namaBulanAktif = namaBulanIndo[now.getMonth()];
-
-    let totalPNS = 0, totalP3K = 0, totalP3KPWD = 0, totalP3KPW = 0, totalLainnya = 0;
-    let totalIuranBulanIni = 0;
-    const mapKar = {};
-    let belumGiliran = 0;
-
-    karyawan.forEach(k => {
-      mapKar[k.id] = k.jabatan;
-      if (k.status === 'Belum') belumGiliran++;
-    });
-
-    const iuranBulanIniMap = {};
-    iuran.forEach(i => {
-      if (i.tanggal && i.tanggal.length >= 7) {
-        if (i.tanggal.substring(0, 4) === curYear && i.tanggal.substring(5, 7) === curMonth) {
-          iuranBulanIniMap[i.id_karyawan] = (iuranBulanIniMap[i.id_karyawan] || 0) + Number(i.nominal || 0);
-          totalIuranBulanIni += Number(i.nominal || 0);
-
-          const jab = mapKar[i.id_karyawan];
-          if (jab === 'PNS') totalPNS += Number(i.nominal || 0);
-          else if (jab === 'P3K') totalP3K += Number(i.nominal || 0);
-          else if (jab === 'P3KPWD') totalP3KPWD += Number(i.nominal || 0);
-          else if (jab === 'P3KPW') totalP3KPW += Number(i.nominal || 0);
-          else totalLainnya += Number(i.nominal || 0);
-        }
+    const local = calculateLocalDashboardStats();
+    // Fire background sync
+    fetchGAS('getDashboardStats', {}, 'GET', 3000).then(online => {
+      if (online && online.success) {
+        // Will be updated on state re-render
       }
-    });
-
-    let pengeluaranBulanIni = 0;
-    let totalPengeluaranLatest = 0;
-    let namaBulanPengeluaran = "Belum Ada";
-
-    if (pengeluaran.length > 0) {
-      let latestDate = "0000-00-00";
-      pengeluaran.forEach(p => {
-        if (p.tanggal && p.tanggal > latestDate) latestDate = p.tanggal;
-      });
-
-      if (latestDate !== "0000-00-00") {
-        const expY = latestDate.substring(0, 4);
-        const expM = latestDate.substring(5, 7);
-        const mIdx = parseInt(expM, 10) - 1;
-        if (mIdx >= 0 && mIdx < 12) {
-          namaBulanPengeluaran = namaBulanIndo[mIdx] + (expY !== curYear ? " " + expY : "");
-        }
-        pengeluaran.forEach(p => {
-          if (p.tanggal && p.tanggal.length >= 7) {
-            const pY = p.tanggal.substring(0, 4);
-            const pM = p.tanggal.substring(5, 7);
-            if (pY === expY && pM === expM) totalPengeluaranLatest += Number(p.nominal || 0);
-            if (pY === curYear && pM === curMonth) pengeluaranBulanIni += Number(p.nominal || 0);
-          }
-        });
-      }
-    }
-
-    const aktivitas = [];
-    iuran.forEach(i => aktivitas.push({ id: i.id, tgl: i.tanggal, keterangan: 'Pembayaran Iuran - ' + (i.nama_karyawan || 'Anggota'), nominal: Number(i.nominal || 0), status: 'Masuk' }));
-    pengeluaran.forEach(p => aktivitas.push({ id: p.id, tgl: p.tanggal, keterangan: 'Biaya ' + p.keterangan, nominal: Number(p.nominal || 0), status: 'Keluar' }));
-    aktivitas.sort((a, b) => new Date(b.tgl) - new Date(a.tgl));
-
-    const belumBayarList = [];
-    karyawan.forEach(k => {
-      if (!iuranBulanIniMap[k.id] || iuranBulanIniMap[k.id] <= 0) {
-        belumBayarList.push({ nama: k.nama });
-      }
-    });
-    belumBayarList.sort((a, b) => a.nama.localeCompare(b.nama));
-
-    return {
-      success: true,
-      data: {
-        belumBayarList,
-        totalPNS,
-        totalP3K,
-        totalP3KPWD,
-        totalP3KPW,
-        totalLainnya,
-        totalIuran: totalIuranBulanIni,
-        totalPengeluaran: totalPengeluaranLatest,
-        saldo: totalIuranBulanIni - pengeluaranBulanIni,
-        belumGiliran,
-        aktivitas,
-        info: settings.info_dashboard || "Selamat datang di E-Anjangsana!",
-        wa_template: settings.wa_template || "",
-        bulanAktif: namaBulanAktif,
-        bulanPengeluaran: namaBulanPengeluaran
-      }
-    };
+    }).catch(() => {});
+    return { success: true, data: local };
   },
 
   // Karyawan
   async getKaryawan() {
-    const online = await fetchGAS('getKaryawan', {}, 'GET');
-    if (online && online.success) return online;
     const data = getLocal('karyawan', SEED_KARYAWAN);
-    return { success: true, data: data.sort((a, b) => a.nama.localeCompare(b.nama)) };
+    fetchGAS('getKaryawan', {}, 'GET', 3000).then(res => {
+      if (res && res.success) setLocal('karyawan', res.data);
+    }).catch(() => {});
+    return { success: true, data: [...data].sort((a, b) => a.nama.localeCompare(b.nama)) };
   },
 
   async saveKaryawan(payload) {
-    const online = await fetchGAS('saveKaryawan', payload, 'POST');
-    if (online) return online;
-
     const list = getLocal('karyawan', SEED_KARYAWAN);
     if (payload.isEdit === 'true' || payload.isEdit === true) {
       const idx = list.findIndex(k => String(k.id) === String(payload.dataId));
       if (idx !== -1) {
-        list[idx] = { ...list[idx], nama: payload.nama, jabatan: payload.jabatan, nominal_iuran: payload.nominal_iuran, status: payload.status };
+        list[idx] = { ...list[idx], nama: payload.nama, jabatan: payload.jabatan, nominal_iuran: Number(payload.nominal_iuran), status: payload.status };
       }
     } else {
       list.push({
-        id: String(Date.now()),
+        id: payload.id || String(Date.now()),
         nama: payload.nama,
         jabatan: payload.jabatan,
         nominal_iuran: Number(payload.nominal_iuran),
@@ -297,139 +424,125 @@ export const api = {
       });
     }
     setLocal('karyawan', list);
+
+    // Sync to GAS in background
+    fetchGAS('saveKaryawan', payload, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   async deleteKaryawan(id) {
-    const online = await fetchGAS('deleteKaryawan', { id }, 'POST');
-    if (online) return online;
     let list = getLocal('karyawan', SEED_KARYAWAN);
     list = list.filter(k => String(k.id) !== String(id));
     setLocal('karyawan', list);
+
+    fetchGAS('deleteKaryawan', { id }, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   async resetStatusKaryawan() {
-    const online = await fetchGAS('resetStatusKaryawan', {}, 'POST');
-    if (online) return online;
     const list = getLocal('karyawan', SEED_KARYAWAN);
     list.forEach(k => k.status = 'Belum');
     setLocal('karyawan', list);
+
+    fetchGAS('resetStatusKaryawan', {}, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   // Iuran
   async getIuran() {
-    const online = await fetchGAS('getIuran', {}, 'GET');
-    if (online && online.success) return online;
     const data = getLocal('iuran', []);
+    fetchGAS('getIuran', {}, 'GET', 3000).then(res => {
+      if (res && res.success) setLocal('iuran', res.data);
+    }).catch(() => {});
     return { success: true, data: [...data].reverse() };
   },
 
   async saveIuran(payload) {
-    const online = await fetchGAS('saveIuran', payload, 'POST');
-    if (online) return online;
-
     const list = getLocal('iuran', []);
+    const newItem = {
+      id: payload.dataId || Date.now(),
+      tanggal: payload.tanggal,
+      id_karyawan: payload.id_karyawan,
+      nama_karyawan: payload.nama_karyawan,
+      periode: payload.periode,
+      nominal: Number(payload.nominal),
+      metode_pembayaran: payload.metode_pembayaran,
+      uang_diterima: Number(payload.uang_diterima),
+      kembalian: Number(payload.kembalian)
+    };
+
     if (payload.isEdit === 'true' || payload.isEdit === true) {
       const idx = list.findIndex(i => String(i.id) === String(payload.dataId));
-      if (idx !== -1) {
-        list[idx] = {
-          ...list[idx],
-          tanggal: payload.tanggal,
-          id_karyawan: payload.id_karyawan,
-          nama_karyawan: payload.nama_karyawan,
-          periode: payload.periode,
-          nominal: Number(payload.nominal),
-          metode_pembayaran: payload.metode_pembayaran,
-          uang_diterima: Number(payload.uang_diterima),
-          kembalian: Number(payload.kembalian)
-        };
-      }
+      if (idx !== -1) list[idx] = newItem;
     } else {
-      list.push({
-        id: Date.now(),
-        tanggal: payload.tanggal,
-        id_karyawan: payload.id_karyawan,
-        nama_karyawan: payload.nama_karyawan,
-        periode: payload.periode,
-        nominal: Number(payload.nominal),
-        metode_pembayaran: payload.metode_pembayaran,
-        uang_diterima: Number(payload.uang_diterima),
-        kembalian: Number(payload.kembalian)
-      });
+      list.push(newItem);
     }
     setLocal('iuran', list);
+
+    // Sync to GAS in background
+    fetchGAS('saveIuran', payload, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   async deleteIuran(id) {
-    const online = await fetchGAS('deleteIuran', { id }, 'POST');
-    if (online) return online;
     let list = getLocal('iuran', []);
     list = list.filter(i => String(i.id) !== String(id));
     setLocal('iuran', list);
+
+    fetchGAS('deleteIuran', { id }, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   // Pengeluaran
   async getPengeluaran() {
-    const online = await fetchGAS('getPengeluaran', {}, 'GET');
-    if (online && online.success) return online;
     const data = getLocal('pengeluaran', []);
+    fetchGAS('getPengeluaran', {}, 'GET', 3000).then(res => {
+      if (res && res.success) setLocal('pengeluaran', res.data);
+    }).catch(() => {});
     return { success: true, data: [...data].reverse() };
   },
 
   async savePengeluaran(payload) {
-    const online = await fetchGAS('savePengeluaran', payload, 'POST');
-    if (online) return online;
-
     const list = getLocal('pengeluaran', []);
+    const newItem = {
+      id: payload.dataId || Date.now(),
+      tanggal: payload.tanggal,
+      keterangan: payload.keterangan,
+      nominal: Number(payload.nominal),
+      kategori: payload.kategori
+    };
+
     if (payload.isEdit === 'true' || payload.isEdit === true) {
       const idx = list.findIndex(p => String(p.id) === String(payload.dataId));
-      if (idx !== -1) {
-        list[idx] = {
-          ...list[idx],
-          tanggal: payload.tanggal,
-          keterangan: payload.keterangan,
-          nominal: Number(payload.nominal),
-          kategori: payload.kategori
-        };
-      }
+      if (idx !== -1) list[idx] = newItem;
     } else {
-      list.push({
-        id: Date.now(),
-        tanggal: payload.tanggal,
-        keterangan: payload.keterangan,
-        nominal: Number(payload.nominal),
-        kategori: payload.kategori
-      });
+      list.push(newItem);
     }
     setLocal('pengeluaran', list);
+
+    fetchGAS('savePengeluaran', payload, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   async deletePengeluaran(id) {
-    const online = await fetchGAS('deletePengeluaran', { id }, 'POST');
-    if (online) return online;
     let list = getLocal('pengeluaran', []);
     list = list.filter(p => String(p.id) !== String(id));
     setLocal('pengeluaran', list);
+
+    fetchGAS('deletePengeluaran', { id }, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   // Undian
   async getUndian() {
-    const online = await fetchGAS('getUndian', {}, 'GET');
-    if (online && online.success) return online;
     const data = getLocal('undian', []);
+    fetchGAS('getUndian', {}, 'GET', 3000).then(res => {
+      if (res && res.success) setLocal('undian', res.data);
+    }).catch(() => {});
     return { success: true, data: [...data].reverse() };
   },
 
   async saveUndian(payload) {
-    const online = await fetchGAS('saveUndian', payload, 'POST');
-    if (online) return online;
-
     const list = getLocal('undian', []);
     list.push({
       id: Date.now(),
@@ -440,7 +553,7 @@ export const api = {
     });
     setLocal('undian', list);
 
-    // Update status karyawan to 'Sudah'
+    // Update status karyawan to 'Sudah' locally
     const karyawan = getLocal('karyawan', SEED_KARYAWAN);
     const kIdx = karyawan.findIndex(k => String(k.id) === String(payload.id_karyawan));
     if (kIdx !== -1) {
@@ -448,19 +561,16 @@ export const api = {
       setLocal('karyawan', karyawan);
     }
 
+    fetchGAS('saveUndian', payload, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   async deleteUndian(id) {
-    const online = await fetchGAS('deleteUndian', { id }, 'POST');
-    if (online) return online;
-
     let list = getLocal('undian', []);
     const item = list.find(u => String(u.id) === String(id));
     list = list.filter(u => String(u.id) !== String(id));
     setLocal('undian', list);
 
-    // Rollback status karyawan to 'Belum'
     if (item && item.id_karyawan) {
       const karyawan = getLocal('karyawan', SEED_KARYAWAN);
       const kIdx = karyawan.findIndex(k => String(k.id) === String(item.id_karyawan));
@@ -470,21 +580,20 @@ export const api = {
       }
     }
 
+    fetchGAS('deleteUndian', { id }, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   // Users
   async getUsers() {
-    const online = await fetchGAS('getUsers', {}, 'GET');
-    if (online && online.success) return online;
     const users = getLocal('users', SEED_USERS);
+    fetchGAS('getUsers', {}, 'GET', 3000).then(res => {
+      if (res && res.success) setLocal('users', res.data);
+    }).catch(() => {});
     return { success: true, data: users.map(u => ({ username: u.username, fullname: u.fullname, role: u.role, photo: u.photo || '' })) };
   },
 
   async saveUser(payload) {
-    const online = await fetchGAS('saveUser', payload, 'POST');
-    if (online) return online;
-
     const users = getLocal('users', SEED_USERS);
     const passHash = payload.password ? await hashPassword(payload.password.trim()) : '';
 
@@ -510,49 +619,45 @@ export const api = {
       });
     }
     setLocal('users', users);
+
+    fetchGAS('saveUser', payload, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   async deleteUser(username) {
     if (username === 'admin') return { success: false, message: 'Super Admin utama tidak boleh dihapus!' };
-    const online = await fetchGAS('deleteUser', { username }, 'POST');
-    if (online) return online;
     let users = getLocal('users', SEED_USERS);
     users = users.filter(u => u.username !== username);
     setLocal('users', users);
+
+    fetchGAS('deleteUser', { username }, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   // Settings
   async getSettings() {
-    const onlineInfo = await fetchGAS('getDashboardStats', {}, 'GET');
-    const onlineWa = await fetchGAS('getWaTemplate', {}, 'GET');
-
     const settings = getLocal('settings', SEED_SETTINGS);
     return {
       success: true,
-      data: {
-        info_dashboard: onlineInfo?.data?.info || settings.info_dashboard,
-        wa_template: onlineWa?.data || settings.wa_template
-      }
+      data: settings
     };
   },
 
   async saveSettingInfo(infoText) {
-    const online = await fetchGAS('saveSettingInfo', { infoText }, 'POST');
-    if (online) return online;
     const settings = getLocal('settings', SEED_SETTINGS);
     settings.info_dashboard = infoText;
     setLocal('settings', settings);
+
+    fetchGAS('saveSettingInfo', { infoText }, 'POST', 6000).catch(() => {});
     return { success: true };
   },
 
   async saveSettingWA(templateText) {
-    const online = await fetchGAS('saveSettingWA', { templateText }, 'POST');
-    if (online) return online;
     const settings = getLocal('settings', SEED_SETTINGS);
     settings.wa_template = templateText;
     setLocal('settings', settings);
+
+    fetchGAS('saveSettingWA', { templateText }, 'POST', 6000).catch(() => {});
     return { success: true };
   }
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, RefreshCw, CheckCircle2 } from 'lucide-react';
 
-export default function Navbar() {
+export default function Navbar({ isSyncing, onSync }) {
   const [timeStr, setTimeStr] = useState('');
 
   useEffect(() => {
@@ -30,8 +30,21 @@ export default function Navbar() {
         <span>{timeStr || 'Memuat waktu...'}</span>
       </div>
 
-      <div className="text-xs font-semibold text-slate-400">
-        E-Anjangsana • UPTD Puskesmas Cermee
+      <div className="flex items-center gap-3">
+        {onSync && (
+          <button
+            onClick={onSync}
+            disabled={isSyncing}
+            title="Sinkronkan dengan Google Sheets"
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-600' : ''}`} />
+            <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkron Data'}</span>
+          </button>
+        )}
+        <div className="text-xs font-semibold text-slate-400">
+          E-Anjangsana • UPTD Puskesmas Cermee
+        </div>
       </div>
     </header>
   );

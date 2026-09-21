@@ -45,9 +45,11 @@ export default function Login({ onLoginSuccess, onLoginGuest }) {
 
         Swal.fire({
           icon: 'success',
-          title: 'Login Berhasil',
+          title: 'Berhasil Masuk',
           text: `Selamat datang, ${res.user.fullname || res.user.username}!`,
-          timer: 1500,
+          toast: true,
+          position: 'top-end',
+          timer: 2000,
           showConfirmButton: false
         });
       } else {
