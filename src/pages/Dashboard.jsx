@@ -186,7 +186,7 @@ export default function Dashboard({ stats, loading, onNavigate, currentUser }) {
       </div>
 
       {/* Two Column Layout: Belum Bayar & Aktivitas */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Belum Bayar List */}
         <div className="animate-fade-in-up delay-350 bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
