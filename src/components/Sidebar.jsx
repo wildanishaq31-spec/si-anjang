@@ -72,8 +72,8 @@ export default function Sidebar({
             </div>
             <div>
               <h1 className="font-bold text-lg leading-tight tracking-tight text-white flex items-center gap-1.5">
-                E-Anjangsana
-                <span className="text-[10px] font-extrabold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-sm border border-blue-400/20">V.10</span>
+                SI-ANJANG
+                <span className="text-[10px] font-extrabold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-sm border border-blue-400/20">V.10.5</span>
               </h1>
               <p className="text-xs text-slate-400 font-medium">UPTD Puskesmas Cermee</p>
             </div>

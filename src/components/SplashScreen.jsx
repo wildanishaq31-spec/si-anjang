@@ -144,7 +144,7 @@ export default function SplashScreen({ onFinish }) {
 
           {/* Footer Note */}
           <div className="text-[10px] text-slate-400 text-center font-medium tracking-wide">
-            E-ANJANGSANA V.10 • KELUARGA BESAR PKM CERMEE
+            SI-ANJANG V.10.5 • KELUARGA BESAR PKM CERMEE
           </div>
         </div>
       </div>

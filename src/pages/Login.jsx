@@ -88,7 +88,7 @@ export default function Login({ onLoginSuccess, onLoginGuest }) {
               <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/50">
                 <Wallet className="w-4 h-4" />
               </div>
-              <span>E-Anjangsana PKM Cermee</span>
+              <span>SI-ANJANG V.10.5 PKM Cermee</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">

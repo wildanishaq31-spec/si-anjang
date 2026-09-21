@@ -43,7 +43,7 @@ export default function Navbar({ isSyncing, onSync }) {
           </button>
         )}
         <div className="text-xs font-semibold text-slate-400">
-          E-Anjangsana • UPTD Puskesmas Cermee
+          SI-ANJANG V.10.5 • UPTD Puskesmas Cermee
         </div>
       </div>
     </header>

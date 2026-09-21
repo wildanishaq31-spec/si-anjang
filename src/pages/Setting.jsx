@@ -241,7 +241,7 @@ export default function Setting({ settings, onSaveInfo, onSaveWA, apiService, lo
               Petunjuk Deploy Google Apps Script:
             </p>
             <ol className="list-decimal list-inside space-y-0.5 text-indigo-700/90 pl-1">
-              <li>Buka Script Editor di Google Spreadsheet <code>E-ANJANGSANA V.10</code>.</li>
+              <li>Buka Script Editor di Google Spreadsheet <code>SI-ANJANG V.10.5</code>.</li>
               <li>Pastikan kode <code>gas/Code.gs</code> yang baru sudah Anda simpan.</li>
               <li>Klik tombol <b>Deploy</b> &gt; <b>Manage deployments</b> (Kelola penerapan) &gt; Edit versi terbaru.</li>
               <li>Pastikan <b>Who has access</b> (Siapa yang memiliki akses) disetel ke: <b>Anyone</b> (Siapa saja).</li>

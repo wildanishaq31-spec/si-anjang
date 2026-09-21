@@ -42,7 +42,7 @@ export const SEED_KARYAWAN = [
 ];
 
 export const SEED_SETTINGS = {
-  info_dashboard: 'Selamat datang di sistem E-Anjangsana UPTD Puskesmas Cermee. Silakan cek tunggakan iuran dan undian tuan rumah.',
+  info_dashboard: 'Selamat datang di sistem SI-ANJANG V.10.5 UPTD Puskesmas Cermee. Silakan cek tunggakan iuran dan undian tuan rumah.',
   wa_template: `*PEMBERITAHUAN IURAN ANJANGSANA*
 UPTD Puskesmas Cermee
 
@@ -189,7 +189,7 @@ export function calculateLocalDashboardStats(customData = {}) {
     saldo: totalIuranBulanIni - pengeluaranBulanIni,
     belumGiliran,
     aktivitas,
-    info: settings.info_dashboard || "Selamat datang di E-Anjangsana!",
+    info: settings.info_dashboard || "Selamat datang di SI-ANJANG V.10.5!",
     wa_template: settings.wa_template || "",
     bulanAktif: namaBulanAktif,
     bulanPengeluaran: namaBulanPengeluaran

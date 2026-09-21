@@ -108,7 +108,7 @@ export default function UserManagement({ userList, onSave, onDelete, loading }) 
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Data Akun User</h2>
           <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            Manajemen hak akses akun pengelola sistem E-Anjangsana
+            Manajemen hak akses akun pengelola sistem SI-ANJANG V.10.5
           </p>
         </div>
 

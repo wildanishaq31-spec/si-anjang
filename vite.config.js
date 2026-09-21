@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'E-Anjangsana PKM Cermee',
-        short_name: 'E-Anjangsana',
-        description: 'Sistem Informasi Manajemen Iuran & Undian Anjangsana UPTD Puskesmas Cermee',
+        name: 'SI-ANJANG V.10.5 PKM Cermee',
+        short_name: 'SI-ANJANG',
+        description: 'Sistem Informasi Manajemen Iuran & Undian Anjangsana (SI-ANJANG V.10.5) UPTD Puskesmas Cermee',
         theme_color: '#111536',
         background_color: '#0b1120',
         display: 'standalone',
