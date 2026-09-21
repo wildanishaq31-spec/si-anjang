@@ -27,6 +27,5 @@ dist-ssr
 # Backend Google Apps Script (Kept private & secure locally)
 *.gs
 Code.gs
-Index.html
 gas/
 
