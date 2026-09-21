@@ -197,7 +197,7 @@ export function calculateLocalDashboardStats(customData = {}) {
 }
 
 // Generic Fetch to Google Apps Script with timeout
-async function fetchGAS(action, params = {}, method = 'GET', timeoutMs = 6000) {
+async function fetchGAS(action, params = {}, method = 'GET', timeoutMs = 12000) {
   const currentUrl = localStorage.getItem('anjangsana_gas_url') || GAS_URL;
   if (!currentUrl) return null;
 
@@ -231,7 +231,6 @@ async function fetchGAS(action, params = {}, method = 'GET', timeoutMs = 6000) {
     }
   } catch (error) {
     clearTimeout(timer);
-    // Silent fail for offline/timeout fallback
     return null;
   }
 }
@@ -260,23 +259,37 @@ export const api = {
     return calculateLocalDashboardStats();
   },
 
-  // Fast Login (instant local check + fast server verification)
+  // Login: Online-first with authoritative database check, then fallback to local
   async login(username, password) {
+    const trimmedUser = username.trim();
+    const currentUrl = this.getGasUrl();
+
+    // 1. If GAS URL configured, try authenticating with the live Google Sheet Database first
+    if (currentUrl) {
+      const online = await fetchGAS('login', { username: trimmedUser, password }, 'POST', 12000);
+      if (online) {
+        if (online.success && online.user) {
+          // Immediately fetch and cache updated users list from database
+          fetchGAS('getUsers', {}, 'GET', 8000).then(res => {
+            if (res && res.success && res.data) {
+              setLocal('users', res.data);
+            }
+          }).catch(() => {});
+          return online;
+        }
+        // If server explicitly returned { success: false, message: ... }
+        return online;
+      }
+    }
+
+    // 2. Offline / Local Fallback
     const passHash = await hashPassword(password);
     const users = getLocal('users', SEED_USERS);
-    const user = users.find(u => u.username === username);
+    const user = users.find(u => u.username === trimmedUser);
 
     const demoHash = '3dfba9f94793741870bb788db9fbc2f98642a8b9816024fae1fa4662d511a3d9';
-    const isLocalValid = (user && (user.password === passHash || passHash === demoHash || password === 'Demo2026!' || password === 'admin' || password === 'bendahara'));
-
-    // Try online login with short timeout (2.5s)
-    const onlinePromise = fetchGAS('login', { username, password }, 'POST', 2500);
-
-    // If local matches immediately, we can return quickly
-    if (isLocalValid) {
+    if (user && (user.password === passHash || passHash === demoHash || password === 'Demo2026!' || password === 'admin' || password === 'bendahara')) {
       const token = 'token-' + Math.random().toString(36).substring(2);
-      // Run online login in background to sync session
-      onlinePromise.catch(() => {});
       return {
         success: true,
         user: {
@@ -289,10 +302,7 @@ export const api = {
       };
     }
 
-    const online = await onlinePromise;
-    if (online && online.success) return online;
-
-    return { success: false, message: 'Username atau Password salah! (Default: admin / Demo2026!)' };
+    return { success: false, message: 'Username atau Password salah!' };
   },
 
   async logout(username) {
@@ -304,7 +314,7 @@ export const api = {
   async syncAllData() {
     try {
       // 1. Try single batch endpoint if available
-      const batchRes = await fetchGAS('getAllData', {}, 'GET', 5000);
+      const batchRes = await fetchGAS('getAllData', {}, 'GET', 8000);
       if (batchRes && batchRes.success && batchRes.data) {
         const d = batchRes.data;
         if (d.karyawan) setLocal('karyawan', d.karyawan);
@@ -312,7 +322,7 @@ export const api = {
         if (d.pengeluaran) setLocal('pengeluaran', d.pengeluaran);
         if (d.undian) setLocal('undian', d.undian);
         if (d.settings) setLocal('settings', d.settings);
-        if (d.users) setLocal('users', d.users);
+        if (d.users && d.users.length) setLocal('users', d.users);
         return {
           success: true,
           data: {
@@ -322,30 +332,33 @@ export const api = {
             pengeluaran: d.pengeluaran || getLocal('pengeluaran', []),
             undian: d.undian || getLocal('undian', []),
             settings: d.settings || getLocal('settings', SEED_SETTINGS),
-            users: d.users || getLocal('users', SEED_USERS)
+            users: (d.users && d.users.length) ? d.users : getLocal('users', SEED_USERS)
           }
         };
       }
 
       // 2. Parallel individual endpoint fallback
-      const [statsRes, karRes, iurRes, outRes, undRes, setRes] = await Promise.all([
-        fetchGAS('getDashboardStats', {}, 'GET', 4000),
-        fetchGAS('getKaryawan', {}, 'GET', 4000),
-        fetchGAS('getIuran', {}, 'GET', 4000),
-        fetchGAS('getPengeluaran', {}, 'GET', 4000),
-        fetchGAS('getUndian', {}, 'GET', 4000),
-        fetchGAS('getWaTemplate', {}, 'GET', 4000)
+      const [statsRes, karRes, iurRes, outRes, undRes, setRes, usersRes] = await Promise.all([
+        fetchGAS('getDashboardStats', {}, 'GET', 8000),
+        fetchGAS('getKaryawan', {}, 'GET', 8000),
+        fetchGAS('getIuran', {}, 'GET', 8000),
+        fetchGAS('getPengeluaran', {}, 'GET', 8000),
+        fetchGAS('getUndian', {}, 'GET', 8000),
+        fetchGAS('getWaTemplate', {}, 'GET', 8000),
+        fetchGAS('getUsers', {}, 'GET', 8000)
       ]);
 
       const freshKaryawan = karRes?.success ? karRes.data : getLocal('karyawan', SEED_KARYAWAN);
       const freshIuran = iurRes?.success ? iurRes.data : getLocal('iuran', []);
       const freshPengeluaran = outRes?.success ? outRes.data : getLocal('pengeluaran', []);
       const freshUndian = undRes?.success ? undRes.data : getLocal('undian', []);
+      const freshUsers = usersRes?.success && usersRes.data.length ? usersRes.data : getLocal('users', SEED_USERS);
 
       if (karRes?.success) setLocal('karyawan', freshKaryawan);
       if (iurRes?.success) setLocal('iuran', freshIuran);
       if (outRes?.success) setLocal('pengeluaran', freshPengeluaran);
       if (undRes?.success) setLocal('undian', freshUndian);
+      if (usersRes?.success && usersRes.data.length) setLocal('users', freshUsers);
 
       const localSettings = getLocal('settings', SEED_SETTINGS);
       if (setRes?.success) {
@@ -368,7 +381,8 @@ export const api = {
           iuran: freshIuran,
           pengeluaran: freshPengeluaran,
           undian: freshUndian,
-          settings: localSettings
+          settings: localSettings,
+          users: freshUsers
         }
       };
     } catch (e) {
@@ -380,7 +394,8 @@ export const api = {
           iuran: getLocal('iuran', []),
           pengeluaran: getLocal('pengeluaran', []),
           undian: getLocal('undian', []),
-          settings: getLocal('settings', SEED_SETTINGS)
+          settings: getLocal('settings', SEED_SETTINGS),
+          users: getLocal('users', SEED_USERS)
         }
       };
     }
@@ -389,10 +404,9 @@ export const api = {
   // Dashboard
   async getDashboardStats() {
     const local = calculateLocalDashboardStats();
-    // Fire background sync
-    fetchGAS('getDashboardStats', {}, 'GET', 3000).then(online => {
+    fetchGAS('getDashboardStats', {}, 'GET', 5000).then(online => {
       if (online && online.success) {
-        // Will be updated on state re-render
+        // Updated in SWR cycle
       }
     }).catch(() => {});
     return { success: true, data: local };
@@ -401,7 +415,7 @@ export const api = {
   // Karyawan
   async getKaryawan() {
     const data = getLocal('karyawan', SEED_KARYAWAN);
-    fetchGAS('getKaryawan', {}, 'GET', 3000).then(res => {
+    fetchGAS('getKaryawan', {}, 'GET', 5000).then(res => {
       if (res && res.success) setLocal('karyawan', res.data);
     }).catch(() => {});
     return { success: true, data: [...data].sort((a, b) => a.nama.localeCompare(b.nama)) };
@@ -425,8 +439,7 @@ export const api = {
     }
     setLocal('karyawan', list);
 
-    // Sync to GAS in background
-    fetchGAS('saveKaryawan', payload, 'POST', 6000).catch(() => {});
+    fetchGAS('saveKaryawan', payload, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
@@ -435,7 +448,7 @@ export const api = {
     list = list.filter(k => String(k.id) !== String(id));
     setLocal('karyawan', list);
 
-    fetchGAS('deleteKaryawan', { id }, 'POST', 6000).catch(() => {});
+    fetchGAS('deleteKaryawan', { id }, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
@@ -444,14 +457,14 @@ export const api = {
     list.forEach(k => k.status = 'Belum');
     setLocal('karyawan', list);
 
-    fetchGAS('resetStatusKaryawan', {}, 'POST', 6000).catch(() => {});
+    fetchGAS('resetStatusKaryawan', {}, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
   // Iuran
   async getIuran() {
     const data = getLocal('iuran', []);
-    fetchGAS('getIuran', {}, 'GET', 3000).then(res => {
+    fetchGAS('getIuran', {}, 'GET', 5000).then(res => {
       if (res && res.success) setLocal('iuran', res.data);
     }).catch(() => {});
     return { success: true, data: [...data].reverse() };
@@ -479,8 +492,7 @@ export const api = {
     }
     setLocal('iuran', list);
 
-    // Sync to GAS in background
-    fetchGAS('saveIuran', payload, 'POST', 6000).catch(() => {});
+    fetchGAS('saveIuran', payload, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
@@ -489,14 +501,14 @@ export const api = {
     list = list.filter(i => String(i.id) !== String(id));
     setLocal('iuran', list);
 
-    fetchGAS('deleteIuran', { id }, 'POST', 6000).catch(() => {});
+    fetchGAS('deleteIuran', { id }, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
   // Pengeluaran
   async getPengeluaran() {
     const data = getLocal('pengeluaran', []);
-    fetchGAS('getPengeluaran', {}, 'GET', 3000).then(res => {
+    fetchGAS('getPengeluaran', {}, 'GET', 5000).then(res => {
       if (res && res.success) setLocal('pengeluaran', res.data);
     }).catch(() => {});
     return { success: true, data: [...data].reverse() };
@@ -520,7 +532,7 @@ export const api = {
     }
     setLocal('pengeluaran', list);
 
-    fetchGAS('savePengeluaran', payload, 'POST', 6000).catch(() => {});
+    fetchGAS('savePengeluaran', payload, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
@@ -529,14 +541,14 @@ export const api = {
     list = list.filter(p => String(p.id) !== String(id));
     setLocal('pengeluaran', list);
 
-    fetchGAS('deletePengeluaran', { id }, 'POST', 6000).catch(() => {});
+    fetchGAS('deletePengeluaran', { id }, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
   // Undian
   async getUndian() {
     const data = getLocal('undian', []);
-    fetchGAS('getUndian', {}, 'GET', 3000).then(res => {
+    fetchGAS('getUndian', {}, 'GET', 5000).then(res => {
       if (res && res.success) setLocal('undian', res.data);
     }).catch(() => {});
     return { success: true, data: [...data].reverse() };
@@ -553,7 +565,6 @@ export const api = {
     });
     setLocal('undian', list);
 
-    // Update status karyawan to 'Sudah' locally
     const karyawan = getLocal('karyawan', SEED_KARYAWAN);
     const kIdx = karyawan.findIndex(k => String(k.id) === String(payload.id_karyawan));
     if (kIdx !== -1) {
@@ -561,7 +572,7 @@ export const api = {
       setLocal('karyawan', karyawan);
     }
 
-    fetchGAS('saveUndian', payload, 'POST', 6000).catch(() => {});
+    fetchGAS('saveUndian', payload, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
@@ -580,16 +591,18 @@ export const api = {
       }
     }
 
-    fetchGAS('deleteUndian', { id }, 'POST', 6000).catch(() => {});
+    fetchGAS('deleteUndian', { id }, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
   // Users
   async getUsers() {
+    const online = await fetchGAS('getUsers', {}, 'GET', 8000);
+    if (online && online.success && online.data && online.data.length) {
+      setLocal('users', online.data);
+      return online;
+    }
     const users = getLocal('users', SEED_USERS);
-    fetchGAS('getUsers', {}, 'GET', 3000).then(res => {
-      if (res && res.success) setLocal('users', res.data);
-    }).catch(() => {});
     return { success: true, data: users.map(u => ({ username: u.username, fullname: u.fullname, role: u.role, photo: u.photo || '' })) };
   },
 
@@ -620,7 +633,10 @@ export const api = {
     }
     setLocal('users', users);
 
-    fetchGAS('saveUser', payload, 'POST', 6000).catch(() => {});
+    const onlineRes = await fetchGAS('saveUser', payload, 'POST', 8000);
+    if (onlineRes && !onlineRes.success) {
+      return onlineRes;
+    }
     return { success: true };
   },
 
@@ -630,7 +646,7 @@ export const api = {
     users = users.filter(u => u.username !== username);
     setLocal('users', users);
 
-    fetchGAS('deleteUser', { username }, 'POST', 6000).catch(() => {});
+    fetchGAS('deleteUser', { username }, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
@@ -648,7 +664,7 @@ export const api = {
     settings.info_dashboard = infoText;
     setLocal('settings', settings);
 
-    fetchGAS('saveSettingInfo', { infoText }, 'POST', 6000).catch(() => {});
+    fetchGAS('saveSettingInfo', { infoText }, 'POST', 8000).catch(() => {});
     return { success: true };
   },
 
@@ -657,7 +673,7 @@ export const api = {
     settings.wa_template = templateText;
     setLocal('settings', settings);
 
-    fetchGAS('saveSettingWA', { templateText }, 'POST', 6000).catch(() => {});
+    fetchGAS('saveSettingWA', { templateText }, 'POST', 8000).catch(() => {});
     return { success: true };
   }
 };

@@ -323,13 +323,15 @@ export default function App() {
 
   const handleSaveUser = async (payload) => {
     const res = await api.saveUser(payload);
-    setUserList(api.getLocal('users', SEED_USERS));
+    const updated = await api.getUsers();
+    if (updated?.data) setUserList(updated.data);
     return res;
   };
 
   const handleDeleteUser = async (username) => {
     await api.deleteUser(username);
-    setUserList(api.getLocal('users', SEED_USERS));
+    const updated = await api.getUsers();
+    if (updated?.data) setUserList(updated.data);
   };
 
   const handleSaveInfo = async (infoText) => {
