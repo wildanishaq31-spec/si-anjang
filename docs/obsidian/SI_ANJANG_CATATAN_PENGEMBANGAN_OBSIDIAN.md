@@ -1,6 +1,6 @@
 ---
 title: "SI-ANJANG — Catatan Arsitektur & Pengembangan Sistem (UPTD Puskesmas Cermee)"
-date: 2026-09-20
+date: 2026-09-21
 tags:
   - si-anjang
   - puskesmas-cermee
@@ -8,20 +8,23 @@ tags:
   - pwa
   - react-vite
   - google-sheets-database
+  - swr-cache-first
 status: Active
 aliases:
   - "Master Note SI-ANJANG"
-  - "Dokumentasi Arsitektur E-Anjangsana"
+  - "Dokumentasi Arsitektur SI-ANJANG V.10.5"
 ---
 
-# 🏛️ Master Note: Sistem Informasi Anjangsana (SI-ANJANG) V.10.0
+# 🏛️ Master Note: Sistem Informasi Anjangsana (SI-ANJANG) V.10.5
 
 ## 🎯 Ringkasan Eksekutif
-Aplikasi SI-ANJANG adalah sistem manajemen iuran, kas, dan pengundian tuan rumah anjangsana bagi pegawai dan tenaga kesehatan di **UPTD Puskesmas Cermee**. Sistem ini di-upgrade dari Google Apps Script HTML menjadi **React 19 + Vite 8 + Progressive Web App (PWA)** dengan tetap menggunakan **Google Spreadsheet** sebagai pusat data live.
+Aplikasi **SI-ANJANG V.10.5** adalah sistem manajemen iuran, kas, dan pengundian tuan rumah anjangsana bagi pegawai dan tenaga kesehatan di **UPTD Puskesmas Cermee**. Sistem ini dibangun menggunakan **React 19 + Vite 8 + Tailwind CSS + Progressive Web App (PWA)** dengan arsitektur **Ultra-Fast Cache-First (SWR - Stale While Revalidate)** dan tetap menggunakan **Google Spreadsheet** sebagai pusat database *live*.
 
 - **URL Repository:** [https://github.com/wildanishaq31-spec/si-anjang](https://github.com/wildanishaq31-spec/si-anjang)
 - **Target Domain:** `anjangsana.pkmcermee.my.id`
-- **Catatan Sesi Diskusi:** [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20]]
+- **Catatan Sesi Diskusi:**
+  - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20]] (Migrasi Awal React PWA)
+  - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-21]] (Deployment Vercel, Optimasi 0ms, Bugfix Grid & Branding V.10.5)
 
 ---
 
@@ -33,28 +36,32 @@ Sistem beroperasi di atas spreadsheet yang memiliki sheet-sheet berikut:
 3. **`Iuran`**: Transaksi masuk (`id`, `tanggal`, `id_karyawan`, `nama_karyawan`, `periode`, `nominal`, `metode_pembayaran`, `uang_diterima`, `kembalian`).
 4. **`Pengeluaran`**: Transaksi keluar (`id`, `tanggal`, `keterangan`, `nominal`, `kategori`).
 5. **`Undian`**: Riwayat pemenang tuan rumah (`id`, `tanggal`, `id_karyawan`, `nama_pemenang`, `periode`).
-6. **`Pengaturan`**: Konfigurasi running banner dan template pesan WhatsApp.
+6. **`Settings`**: Konfigurasi info dashboard dan template broadcast WhatsApp.
 
 ---
 
-## ⚡ Fitur Utama & Logika Bisnis
+## ⚡ Fitur Utama & Arsitektur Performa
 
-### 1. Filter Iuran Anti-Double Input
+### 1. Ultra-Fast Cache-First & Optimistic UI (0ms Response)
+- **Instant Rendering:** Data dimuat seketika dari `localStorage` saat aplikasi dibuka. Tidak ada delay, tidak ada layar kosong, dan Dashboard langsung menampilkan angka riil.
+- **Background Sync:** Sinkronisasi dengan Google Apps Script berjalan di latar belakang tanpa mengunci antarmuka.
+- **Optimistic CRUD:** Operasi input/edit/hapus langsung mengupdate UI seketika dalam waktu sub-50ms sebelum request jaringan selesai.
+
+### 2. Filter Iuran Anti-Double Input
 - Dropdown pencarian kasir **hanya memuat pegawai yang belum lunas** pada periode aktif.
-- Begitu data disimpan, nama pegawai langsung hilang dari daftar saran.
-- Jika ada pembatalan/penghapusan data di tabel riwayat pembayaran, nama pegawai otomatis kembali tersedia.
+- Begitu data disimpan, nama pegawai langsung hilang dari daftar saran pembayaran.
 
-### 2. Sistem Undian Tuan Rumah Otomatis & Manual
-- **Mode Otomatis:** Mengacak hanya kandidat berstatus `Belum`, menampilkan nama bergerak cepat (*rolling effect*) dan perayaan confetti.
-- **Mode Manual:** Kolom pencarian searchable yang hanya menampilkan anggota berstatus `Belum` dan otomatis menghitung sisa bulan yang belum terisi.
+### 3. Sistem Undian Tuan Rumah Otomatis & Manual
+- **Mode Otomatis:** Mengacak kandidat berstatus `Belum`, efek putar cepat (*rolling animation*), dan perayaan confetti.
+- **Mode Manual:** Pencarian hanya kandidat berstatus `Belum` dengan kalkulasi sisa bulan siklus secara otomatis.
 
-### 3. Rekapitulasi & Ekspor
+### 4. Rekapitulasi & Ekspor
 - Pemisahan penerimaan tunai (*cash*) vs transfer bank.
 - Ekspor spreadsheet ke format `.xlsx` (SheetJS).
-- Broadcast otomatis daftar nama anggota yang belum melunasi iuran ke grup WhatsApp.
+- Broadcast otomatis daftar anggota belum bayar ke grup WhatsApp.
 
 ---
 
-## 🔗 Referensi File Terkait
-- Catatan Log Diskusi: [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20]]
-- Panduan Deployment Vercel & Konfigurasi Custom Domain: [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20#5. Panduan Singkat Deployment Vercel]]
+## 🔗 Referensi File & Log Sesi
+- [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20]] — Log Sesi Diskusi 20 Sept 2026
+- [[LOG_SESI_CHAT_OBSIDIAN_2026-09-21]] — Log Sesi Diskusi 21 Sept 2026
