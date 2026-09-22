@@ -11,6 +11,12 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png'],
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
+      },
       manifest: {
         name: 'SI-ANJANG V.10.5 PKM Cermee',
         short_name: 'SI-ANJANG',
