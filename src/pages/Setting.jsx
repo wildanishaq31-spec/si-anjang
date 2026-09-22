@@ -15,44 +15,68 @@ import Swal from 'sweetalert2';
 export default function Setting({ settings, onSaveInfo, onSaveWA, apiService, loading }) {
   const [infoText, setInfoText] = useState(settings?.info_dashboard || '');
   const [waTpl, setWaTpl] = useState(settings?.wa_template || '');
+  const [isInfoDirty, setIsInfoDirty] = useState(false);
+  const [isWaDirty, setIsWaDirty] = useState(false);
+  const [savingInfo, setSavingInfo] = useState(false);
+  const [savingWa, setSavingWa] = useState(false);
   const [gasUrl, setGasUrl] = useState('');
   const [testingGas, setTestingGas] = useState(false);
 
   useEffect(() => {
     if (settings) {
-      if (settings.info_dashboard) setInfoText(settings.info_dashboard);
-      if (settings.wa_template) setWaTpl(settings.wa_template);
+      if (!isInfoDirty && settings.info_dashboard !== undefined) {
+        setInfoText(settings.info_dashboard);
+      }
+      if (!isWaDirty && settings.wa_template !== undefined) {
+        setWaTpl(settings.wa_template);
+      }
     }
     if (apiService) {
       setGasUrl(apiService.getGasUrl());
     }
-  }, [settings, apiService]);
+  }, [settings, apiService, isInfoDirty, isWaDirty]);
 
   const handleSaveInfo = async () => {
+    setSavingInfo(true);
     try {
-      await onSaveInfo(infoText);
+      const res = await onSaveInfo(infoText);
+      if (res && res.success === false) {
+        throw new Error(res.message || 'Gagal menyimpan ke Google Spreadsheet');
+      }
+      setIsInfoDirty(false);
       Swal.fire({
         icon: 'success',
-        title: 'Info Dashboard Disimpan',
-        timer: 1200,
+        title: 'Tersimpan di Spreadsheet! ✅',
+        text: 'Pengumuman dashboard berhasil diperbarui ke Google Sheets.',
+        timer: 1500,
         showConfirmButton: false
       });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Gagal', text: err.message });
+      Swal.fire({ icon: 'error', title: 'Gagal Menyimpan', text: err.message });
+    } finally {
+      setSavingInfo(false);
     }
   };
 
   const handleSaveWA = async () => {
+    setSavingWa(true);
     try {
-      await onSaveWA(waTpl);
+      const res = await onSaveWA(waTpl);
+      if (res && res.success === false) {
+        throw new Error(res.message || 'Gagal menyimpan ke Google Spreadsheet');
+      }
+      setIsWaDirty(false);
       Swal.fire({
         icon: 'success',
-        title: 'Template WA Disimpan',
-        timer: 1200,
+        title: 'Tersimpan di Spreadsheet! ✅',
+        text: 'Template pesan WhatsApp berhasil diperbarui ke Google Sheets.',
+        timer: 1500,
         showConfirmButton: false
       });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Gagal', text: err.message });
+      Swal.fire({ icon: 'error', title: 'Gagal Menyimpan', text: err.message });
+    } finally {
+      setSavingWa(false);
     }
   };
 
@@ -141,7 +165,10 @@ export default function Setting({ settings, onSaveInfo, onSaveWA, apiService, lo
               </label>
               <textarea
                 value={infoText}
-                onChange={(e) => setInfoText(e.target.value)}
+                onChange={(e) => {
+                  setInfoText(e.target.value);
+                  setIsInfoDirty(true);
+                }}
                 rows={5}
                 placeholder="Ketik pengumuman hari ini untuk anggota..."
                 className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600"
@@ -152,10 +179,20 @@ export default function Setting({ settings, onSaveInfo, onSaveWA, apiService, lo
           <div className="pt-4 mt-4 border-t border-slate-100">
             <button
               onClick={handleSaveInfo}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              disabled={savingInfo}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
             >
-              <Save className="w-4 h-4" />
-              <span>Simpan Info Dashboard</span>
+              {savingInfo ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Menyimpan ke Spreadsheet...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Info Dashboard</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -184,7 +221,10 @@ export default function Setting({ settings, onSaveInfo, onSaveWA, apiService, lo
               </div>
               <textarea
                 value={waTpl}
-                onChange={(e) => setWaTpl(e.target.value)}
+                onChange={(e) => {
+                  setWaTpl(e.target.value);
+                  setIsWaDirty(true);
+                }}
                 rows={5}
                 placeholder="Ketik format pesan WhatsApp..."
                 className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:border-green-600"
@@ -195,10 +235,20 @@ export default function Setting({ settings, onSaveInfo, onSaveWA, apiService, lo
           <div className="pt-4 mt-4 border-t border-slate-100">
             <button
               onClick={handleSaveWA}
-              className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl shadow-md shadow-green-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              disabled={savingWa}
+              className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl shadow-md shadow-green-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
             >
-              <Save className="w-4 h-4" />
-              <span>Simpan Template WA</span>
+              {savingWa ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Menyimpan ke Spreadsheet...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Template WA</span>
+                </>
+              )}
             </button>
           </div>
         </div>
