@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   LogOut,
   Wallet,
+  Smartphone,
   X
 } from 'lucide-react';
 
@@ -42,6 +43,7 @@ export default function Sidebar({
       allow: !isTamu,
       badge: unpaidCount > 0 ? unpaidCount : null
     },
+    { id: 'download', label: 'Install Aplikasi (PWA)', icon: Smartphone, allow: true },
     { id: 'setting', label: 'Pengaturan', icon: Settings, allow: isAdmin },
     { id: 'user', label: 'Data Akun User', icon: ShieldCheck, allow: isAdmin }
   ];

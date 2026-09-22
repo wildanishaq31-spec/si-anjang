@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Wallet, Eye, EyeOff, Lock, User, ArrowRight, ShieldCheck } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-export default function Login({ onLoginSuccess, onLoginGuest }) {
+export default function Login({ onLoginSuccess, onLoginGuest, onNavigate }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -107,10 +107,14 @@ export default function Login({ onLoginSuccess, onLoginGuest }) {
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 <span>Terhubung Spreadsheet Real</span>
               </div>
-              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onNavigate && onNavigate('download')}
+                className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+              >
                 <div className="w-2 h-2 rounded-full bg-blue-400 animate-ping"></div>
-                <span>PWA Standalone Support</span>
-              </div>
+                <span>Pasang Aplikasi (PWA) 📱</span>
+              </button>
             </div>
           </div>
 
@@ -199,7 +203,7 @@ export default function Login({ onLoginSuccess, onLoginGuest }) {
                   )}
                 </button>
 
-                <div className="pt-4 mt-4 border-t border-slate-100 text-center">
+                <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col gap-2.5 text-center">
                   <p className="text-xs text-slate-500 font-medium">
                     Bukan admin atau bendahara?{' '}
                     <button
@@ -210,6 +214,14 @@ export default function Login({ onLoginSuccess, onLoginGuest }) {
                       Masuk sebagai tamu
                     </button>
                   </p>
+
+                  <button
+                    type="button"
+                    onClick={() => onNavigate && onNavigate('download')}
+                    className="py-2 px-3 bg-slate-50 hover:bg-blue-50 text-blue-600 font-bold text-xs rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>📱 Pasang Aplikasi di HP (PWA)</span>
+                  </button>
                 </div>
               </form>
             </div>

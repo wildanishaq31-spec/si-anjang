@@ -1,8 +1,23 @@
 @import "tailwindcss";
 
 @layer base {
-  body {
+  html, body, #root {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Allow text selection only in forms and inputs */
+  input, textarea, select {
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
 }
 

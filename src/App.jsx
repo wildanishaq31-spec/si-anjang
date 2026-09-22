@@ -12,6 +12,7 @@ import Undian from './pages/Undian';
 import Rekap from './pages/Rekap';
 import Setting from './pages/Setting';
 import UserManagement from './pages/User';
+import DownloadPage from './pages/Download';
 import { api, SEED_KARYAWAN, SEED_USERS, SEED_SETTINGS, calculateLocalDashboardStats } from './services/api';
 import Swal from 'sweetalert2';
 
@@ -26,10 +27,46 @@ export default function App() {
     }
   });
 
-  const [activePage, setActivePage] = useState('dashboard');
+  const [activePage, setActivePage] = useState(() => {
+    try {
+      const path = window.location.pathname.replace(/^\/+/, '').toLowerCase();
+      const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+      if (path === 'download' || hash === 'download') return 'download';
+    } catch (e) {}
+    return 'dashboard';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+
+  // Sync URL changes with activePage
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const path = window.location.pathname.replace(/^\/+/, '').toLowerCase();
+      const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+      if (path === 'download' || hash === 'download') {
+        setActivePage('download');
+      }
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
+
+  const handleNavigate = (page) => {
+    setActivePage(page);
+    try {
+      if (page === 'download') {
+        window.history.pushState(null, '', '/download');
+      } else {
+        window.history.pushState(null, '', '/');
+      }
+    } catch (e) {}
+  };
 
   // Data states initialized IMMEDIATELY from Cache (0ms Instant Load)
   const [karyawanList, setKaryawanList] = useState(() => api.getLocal('karyawan', SEED_KARYAWAN));
@@ -345,12 +382,34 @@ export default function App() {
     api.saveSettingWA(templateText);
   };
 
-  // If not logged in, render Login
+  // If not logged in:
   if (!currentUser) {
+    if (activePage === 'download') {
+      return (
+        <div className="min-h-screen bg-[#0b1120] text-slate-100 p-4 sm:p-8 flex flex-col justify-between">
+          <div className="max-w-4xl w-full mx-auto my-auto">
+            <DownloadPage onNavigate={handleNavigate} currentUser={null} />
+          </div>
+          <div className="text-center pt-4">
+            <button
+              onClick={() => handleNavigate('login')}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+            >
+              Kembali ke Halaman Masuk (Login)
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <>
         {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
-        <Login onLoginSuccess={handleLogin} onLoginGuest={handleLoginGuest} />
+        <Login
+          onLoginSuccess={handleLogin}
+          onLoginGuest={handleLoginGuest}
+          onNavigate={handleNavigate}
+        />
       </>
     );
   }
@@ -365,7 +424,7 @@ export default function App() {
       {/* Sidebar Navigation */}
       <Sidebar
         activePage={activePage}
-        onNavigate={setActivePage}
+        onNavigate={handleNavigate}
         currentUser={currentUser}
         onLogout={handleLogout}
         isOpen={sidebarOpen}
@@ -375,14 +434,25 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-72">
-        <Navbar isSyncing={isSyncing} onSync={syncServerData} />
+        <Navbar
+          isSyncing={isSyncing}
+          onSync={syncServerData}
+          onNavigate={handleNavigate}
+        />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 lg:pb-12">
           {activePage === 'dashboard' && (
             <Dashboard
               stats={dashboardStats}
               loading={false}
-              onNavigate={setActivePage}
+              onNavigate={handleNavigate}
+              currentUser={currentUser}
+            />
+          )}
+
+          {activePage === 'download' && (
+            <DownloadPage
+              onNavigate={handleNavigate}
               currentUser={currentUser}
             />
           )}
@@ -458,7 +528,7 @@ export default function App() {
         {/* Mobile Bottom Navigation for PWA */}
         <BottomNav
           activePage={activePage}
-          onNavigate={setActivePage}
+          onNavigate={handleNavigate}
           onOpenSidebar={() => setSidebarOpen(true)}
           unpaidCount={unpaidCount}
           isTamu={isTamu}

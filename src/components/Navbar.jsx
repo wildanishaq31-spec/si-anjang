@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Clock, RefreshCw, Smartphone } from 'lucide-react';
 
-export default function Navbar({ isSyncing, onSync }) {
+export default function Navbar({ isSyncing, onSync, onNavigate }) {
   const [timeStr, setTimeStr] = useState('');
 
   useEffect(() => {
@@ -31,6 +31,17 @@ export default function Navbar({ isSyncing, onSync }) {
       </div>
 
       <div className="flex items-center gap-3">
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('download')}
+            title="Halaman Install Aplikasi PWA"
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 transition-all cursor-pointer border border-blue-200/60"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-blue-600" />
+            <span>Install App</span>
+          </button>
+        )}
+
         {onSync && (
           <button
             onClick={onSync}
