@@ -73,6 +73,10 @@ export default function App() {
     } catch (e) {}
   };
 
+  // UI & Sync states
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // Data states initialized IMMEDIATELY from Cache (0ms Instant Load)
   const [karyawanList, setKaryawanList] = useState(() => api.getLocal('karyawan', SEED_KARYAWAN));
   const [iuranList, setIuranList] = useState(() => api.getLocal('iuran', []));
@@ -94,6 +98,16 @@ export default function App() {
     });
     setDashboardStats(freshStats);
   }, [karyawanList, iuranList, pengeluaranList, settings]);
+
+  // Logout handler
+  const handleLogout = useCallback(async () => {
+    if (currentUser && currentUser.role !== 'Tamu') {
+      api.logout(currentUser.username);
+    }
+    setCurrentUser(null);
+    sessionStorage.removeItem('anjangsana_session');
+    setActivePage('dashboard');
+  }, [currentUser]);
 
   // Auto Logout Idle Timer (15 Menit)
   useEffect(() => {
@@ -126,7 +140,7 @@ export default function App() {
       clearTimeout(timeout);
       events.forEach(ev => window.removeEventListener(ev, resetTimer));
     };
-  }, [currentUser]);
+  }, [currentUser, handleLogout]);
 
   // Background SWR Data Synchronizer (Non-blocking)
   const syncServerData = useCallback(async () => {
@@ -156,7 +170,7 @@ export default function App() {
       // Background non-blocking sync
       syncServerData();
     }
-  }, [currentUser]);
+  }, [currentUser, refreshLocalDashboard, syncServerData]);
 
   // Login handler (Instant redirect)
   const handleLogin = async (username, password) => {
@@ -193,16 +207,6 @@ export default function App() {
       timer: 2000,
       showConfirmButton: false
     });
-  };
-
-  // Logout handler
-  const handleLogout = async () => {
-    if (currentUser && currentUser.role !== 'Tamu') {
-      api.logout(currentUser.username);
-    }
-    setCurrentUser(null);
-    sessionStorage.removeItem('anjangsana_session');
-    setActivePage('dashboard');
   };
 
   // Calculate unpaid members for badge
