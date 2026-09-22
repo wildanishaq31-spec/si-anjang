@@ -432,7 +432,7 @@ export const api = {
   async getKaryawan() {
     const data = getLocal('karyawan', SEED_KARYAWAN);
     fetchGAS('getKaryawan', {}, 'GET', 5000).then(res => {
-      if (res && res.success) setLocal('karyawan', res.data);
+      if (res && res.success && res.data) setLocal('karyawan', res.data);
     }).catch(() => {});
     return { success: true, data: [...data].sort((a, b) => a.nama.localeCompare(b.nama)) };
   },
@@ -455,8 +455,8 @@ export const api = {
     }
     setLocal('karyawan', list);
 
-    fetchGAS('saveKaryawan', payload, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('saveKaryawan', payload, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   async deleteKaryawan(id) {
@@ -464,8 +464,8 @@ export const api = {
     list = list.filter(k => String(k.id) !== String(id));
     setLocal('karyawan', list);
 
-    fetchGAS('deleteKaryawan', { id }, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('deleteKaryawan', { id }, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   async resetStatusKaryawan() {
@@ -473,15 +473,15 @@ export const api = {
     list.forEach(k => k.status = 'Belum');
     setLocal('karyawan', list);
 
-    fetchGAS('resetStatusKaryawan', {}, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('resetStatusKaryawan', {}, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   // Iuran
   async getIuran() {
     const data = getLocal('iuran', []);
     fetchGAS('getIuran', {}, 'GET', 5000).then(res => {
-      if (res && res.success) setLocal('iuran', res.data);
+      if (res && res.success && res.data) setLocal('iuran', res.data);
     }).catch(() => {});
     return { success: true, data: [...data].reverse() };
   },
@@ -508,8 +508,8 @@ export const api = {
     }
     setLocal('iuran', list);
 
-    fetchGAS('saveIuran', payload, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('saveIuran', payload, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   async deleteIuran(id) {
@@ -517,15 +517,15 @@ export const api = {
     list = list.filter(i => String(i.id) !== String(id));
     setLocal('iuran', list);
 
-    fetchGAS('deleteIuran', { id }, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('deleteIuran', { id }, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   // Pengeluaran
   async getPengeluaran() {
     const data = getLocal('pengeluaran', []);
     fetchGAS('getPengeluaran', {}, 'GET', 5000).then(res => {
-      if (res && res.success) setLocal('pengeluaran', res.data);
+      if (res && res.success && res.data) setLocal('pengeluaran', res.data);
     }).catch(() => {});
     return { success: true, data: [...data].reverse() };
   },
@@ -548,8 +548,8 @@ export const api = {
     }
     setLocal('pengeluaran', list);
 
-    fetchGAS('savePengeluaran', payload, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('savePengeluaran', payload, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   async deletePengeluaran(id) {
@@ -557,15 +557,15 @@ export const api = {
     list = list.filter(p => String(p.id) !== String(id));
     setLocal('pengeluaran', list);
 
-    fetchGAS('deletePengeluaran', { id }, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('deletePengeluaran', { id }, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   // Undian
   async getUndian() {
     const data = getLocal('undian', []);
     fetchGAS('getUndian', {}, 'GET', 5000).then(res => {
-      if (res && res.success) setLocal('undian', res.data);
+      if (res && res.success && res.data) setLocal('undian', res.data);
     }).catch(() => {});
     return { success: true, data: [...data].reverse() };
   },
@@ -588,8 +588,8 @@ export const api = {
       setLocal('karyawan', karyawan);
     }
 
-    fetchGAS('saveUndian', payload, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('saveUndian', payload, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   async deleteUndian(id) {
@@ -607,8 +607,8 @@ export const api = {
       }
     }
 
-    fetchGAS('deleteUndian', { id }, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('deleteUndian', { id }, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   // Users
@@ -649,7 +649,7 @@ export const api = {
     }
     setLocal('users', users);
 
-    const onlineRes = await fetchGAS('saveUser', payload, 'POST', 8000);
+    const onlineRes = await fetchGAS('saveUser', payload, 'POST', 10000);
     if (onlineRes && !onlineRes.success) {
       return onlineRes;
     }
@@ -662,13 +662,16 @@ export const api = {
     users = users.filter(u => u.username !== username);
     setLocal('users', users);
 
-    fetchGAS('deleteUser', { username }, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('deleteUser', { username }, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   // Settings
   async getSettings() {
     const settings = getLocal('settings', SEED_SETTINGS);
+    fetchGAS('getSettings', {}, 'GET', 5000).then(res => {
+      if (res && res.success && res.data) setLocal('settings', res.data);
+    }).catch(() => {});
     return {
       success: true,
       data: settings
@@ -680,8 +683,8 @@ export const api = {
     settings.info_dashboard = infoText;
     setLocal('settings', settings);
 
-    fetchGAS('saveSettingInfo', { infoText }, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('saveSettingInfo', { infoText }, 'POST', 10000);
+    return onlineRes || { success: true };
   },
 
   async saveSettingWA(templateText) {
@@ -689,7 +692,7 @@ export const api = {
     settings.wa_template = templateText;
     setLocal('settings', settings);
 
-    fetchGAS('saveSettingWA', { templateText }, 'POST', 8000).catch(() => {});
-    return { success: true };
+    const onlineRes = await fetchGAS('saveSettingWA', { templateText }, 'POST', 10000);
+    return onlineRes || { success: true };
   }
 };

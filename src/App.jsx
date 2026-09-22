@@ -383,12 +383,14 @@ export default function App() {
   const handleSaveInfo = async (infoText) => {
     setSettings(prev => ({ ...prev, info_dashboard: infoText }));
     setDashboardStats(prev => prev ? ({ ...prev, info: infoText }) : prev);
-    api.saveSettingInfo(infoText);
+    const res = await api.saveSettingInfo(infoText);
+    return res;
   };
 
   const handleSaveWA = async (templateText) => {
     setSettings(prev => ({ ...prev, wa_template: templateText }));
-    api.saveSettingWA(templateText);
+    const res = await api.saveSettingWA(templateText);
+    return res;
   };
 
   // If not logged in:
