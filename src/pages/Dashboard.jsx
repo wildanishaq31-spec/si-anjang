@@ -102,8 +102,13 @@ export default function Dashboard({ stats, loading, onNavigate, currentUser }) {
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
           </div>
-          <div className="mt-3 flex items-center text-xs font-medium text-rose-100">
+          <div className="mt-3 flex items-center justify-between text-xs font-medium text-rose-100">
             <span>Bulan {bulanAktif}</span>
+            {data.isDisetor && (
+              <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold tracking-wide backdrop-blur-xs">
+                Disetor ke Tuan Rumah
+              </span>
+            )}
           </div>
         </div>
 
@@ -118,8 +123,13 @@ export default function Dashboard({ stats, loading, onNavigate, currentUser }) {
               <TrendingDown className="w-5 h-5 text-white" />
             </div>
           </div>
-          <div className="mt-3 flex items-center text-xs font-medium text-sky-100">
+          <div className="mt-3 flex items-center justify-between text-xs font-medium text-sky-100">
             <span>{bulanPengeluaran}</span>
+            {data.totalPengeluaran > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold tracking-wide backdrop-blur-xs">
+                {data.isDisetor ? 'Disetor ke Pemenang' : 'Tercatat'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -158,9 +168,16 @@ export default function Dashboard({ stats, loading, onNavigate, currentUser }) {
 
       {/* Breakdown per Jabatan */}
       <div className="animate-fade-in-up delay-300 card-interactive bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-xl hover:border-blue-200 transition-all">
-        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-          Rincian Penerimaan Bulan {bulanAktif} Berdasarkan Jabatan
-        </h4>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Rincian Penerimaan Bulan {bulanAktif} Berdasarkan Jabatan
+          </h4>
+          {data.isDisetor && (
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+              ✓ Dana Telah Disetorkan ke Tuan Rumah
+            </span>
+          )}
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div className="card-interactive-sm bg-slate-50 hover:bg-blue-50/50 rounded-xl p-3 border border-slate-200/60 hover:border-blue-300 hover:shadow-md transition-all">
             <span className="text-[11px] font-bold text-blue-600 uppercase">PNS</span>

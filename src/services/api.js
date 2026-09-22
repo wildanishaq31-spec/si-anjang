@@ -111,46 +111,53 @@ export function calculateLocalDashboardStats(customData = {}) {
   iuran.forEach(i => {
     if (i.tanggal && i.tanggal.length >= 7) {
       if (i.tanggal.substring(0, 4) === curYear && i.tanggal.substring(5, 7) === curMonth) {
-        iuranBulanIniMap[i.id_karyawan] = (iuranBulanIniMap[i.id_karyawan] || 0) + Number(i.nominal || 0);
-        totalIuranBulanIni += Number(i.nominal || 0);
+        const nom = Number(i.nominal || 0);
+        iuranBulanIniMap[i.id_karyawan] = (iuranBulanIniMap[i.id_karyawan] || 0) + nom;
+        totalIuranBulanIni += nom;
 
         const jab = mapKar[i.id_karyawan];
-        if (jab === 'PNS') totalPNS += Number(i.nominal || 0);
-        else if (jab === 'P3K') totalP3K += Number(i.nominal || 0);
-        else if (jab === 'P3KPWD') totalP3KPWD += Number(i.nominal || 0);
-        else if (jab === 'P3KPW') totalP3KPW += Number(i.nominal || 0);
-        else totalLainnya += Number(i.nominal || 0);
+        if (jab === 'PNS') totalPNS += nom;
+        else if (jab === 'P3K') totalP3K += nom;
+        else if (jab === 'P3KPWD') totalP3KPWD += nom;
+        else if (jab === 'P3KPW') totalP3KPW += nom;
+        else totalLainnya += nom;
       }
     }
   });
 
+  // Pengeluaran di Bulan Aktif (otomatis tereset menjadi 0 saat berganti bulan dari tanggal 1 jika belum ada input pengeluaran)
   let pengeluaranBulanIni = 0;
-  let totalPengeluaranLatest = 0;
-  let namaBulanPengeluaran = "Belum Ada";
-
-  if (pengeluaran.length > 0) {
-    let latestDate = "0000-00-00";
-    pengeluaran.forEach(p => {
-      if (p.tanggal && p.tanggal > latestDate) latestDate = p.tanggal;
-    });
-
-    if (latestDate !== "0000-00-00") {
-      const expY = latestDate.substring(0, 4);
-      const expM = latestDate.substring(5, 7);
-      const mIdx = parseInt(expM, 10) - 1;
-      if (mIdx >= 0 && mIdx < 12) {
-        namaBulanPengeluaran = namaBulanIndo[mIdx] + (expY !== curYear ? " " + expY : "");
+  pengeluaran.forEach(p => {
+    if (p.tanggal && p.tanggal.length >= 7) {
+      const pY = p.tanggal.substring(0, 4);
+      const pM = p.tanggal.substring(5, 7);
+      if (pY === curYear && pM === curMonth) {
+        pengeluaranBulanIni += Number(p.nominal || 0);
       }
-      pengeluaran.forEach(p => {
-        if (p.tanggal && p.tanggal.length >= 7) {
-          const pY = p.tanggal.substring(0, 4);
-          const pM = p.tanggal.substring(5, 7);
-          if (pY === expY && pM === expM) totalPengeluaranLatest += Number(p.nominal || 0);
-          if (pY === curYear && pM === curMonth) pengeluaranBulanIni += Number(p.nominal || 0);
-        }
-      });
     }
-  }
+  });
+
+  const belumBayarList = [];
+  karyawan.forEach(k => {
+    if (!iuranBulanIniMap[k.id] || iuranBulanIniMap[k.id] <= 0) {
+      belumBayarList.push({ nama: k.nama });
+    }
+  });
+  belumBayarList.sort((a, b) => a.nama.localeCompare(b.nama));
+
+  // Aturan Baru:
+  // Jika semua iuran sudah dibayar (tidak ada lagi yang belum bayar) dan pengeluaran sudah di-input oleh admin (uang disetor ke tuan rumah),
+  // maka Iuran Masuk menjadi 0 dan Rincian Penerimaan per jabatan juga menjadi 0.
+  const isSemuaLunasDanDisetor = belumBayarList.length === 0 && karyawan.length > 0 && pengeluaranBulanIni > 0;
+
+  const displayTotalIuran = isSemuaLunasDanDisetor ? 0 : totalIuranBulanIni;
+  const displayTotalPNS = isSemuaLunasDanDisetor ? 0 : totalPNS;
+  const displayTotalP3K = isSemuaLunasDanDisetor ? 0 : totalP3K;
+  const displayTotalP3KPWD = isSemuaLunasDanDisetor ? 0 : totalP3KPWD;
+  const displayTotalP3KPW = isSemuaLunasDanDisetor ? 0 : totalP3KPW;
+  const displayTotalLainnya = isSemuaLunasDanDisetor ? 0 : totalLainnya;
+  const displayTotalPengeluaran = pengeluaranBulanIni;
+  const displaySaldo = isSemuaLunasDanDisetor ? 0 : (totalIuranBulanIni - pengeluaranBulanIni);
 
   const aktivitas = [];
   iuran.forEach(i => aktivitas.push({
@@ -169,30 +176,24 @@ export function calculateLocalDashboardStats(customData = {}) {
   }));
   aktivitas.sort((a, b) => new Date(b.tgl || 0) - new Date(a.tgl || 0));
 
-  const belumBayarList = [];
-  karyawan.forEach(k => {
-    if (!iuranBulanIniMap[k.id] || iuranBulanIniMap[k.id] <= 0) {
-      belumBayarList.push({ nama: k.nama });
-    }
-  });
-  belumBayarList.sort((a, b) => a.nama.localeCompare(b.nama));
-
   return {
     belumBayarList,
-    totalPNS,
-    totalP3K,
-    totalP3KPWD,
-    totalP3KPW,
-    totalLainnya,
-    totalIuran: totalIuranBulanIni,
-    totalPengeluaran: totalPengeluaranLatest,
-    saldo: totalIuranBulanIni - pengeluaranBulanIni,
+    totalPNS: displayTotalPNS,
+    totalP3K: displayTotalP3K,
+    totalP3KPWD: displayTotalP3KPWD,
+    totalP3KPW: displayTotalP3KPW,
+    totalLainnya: displayTotalLainnya,
+    totalIuran: displayTotalIuran,
+    totalPengeluaran: displayTotalPengeluaran,
+    saldo: displaySaldo,
     belumGiliran,
     aktivitas,
     info: settings.info_dashboard || "Selamat datang di SI-ANJANG V.10.5!",
     wa_template: settings.wa_template || "",
     bulanAktif: namaBulanAktif,
-    bulanPengeluaran: namaBulanPengeluaran
+    bulanPengeluaran: `Bulan ${namaBulanAktif}`,
+    isDisetor: isSemuaLunasDanDisetor,
+    rawTotalIuran: totalIuranBulanIni
   };
 }
 
