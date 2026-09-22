@@ -318,22 +318,37 @@ export const api = {
       const batchRes = await fetchGAS('getAllData', {}, 'GET', 8000);
       if (batchRes && batchRes.success && batchRes.data) {
         const d = batchRes.data;
-        if (d.karyawan) setLocal('karyawan', d.karyawan);
-        if (d.iuran) setLocal('iuran', d.iuran);
-        if (d.pengeluaran) setLocal('pengeluaran', d.pengeluaran);
-        if (d.undian) setLocal('undian', d.undian);
-        if (d.settings) setLocal('settings', d.settings);
-        if (d.users && d.users.length) setLocal('users', d.users);
+        const freshKar = d.karyawan || getLocal('karyawan', SEED_KARYAWAN);
+        const freshIur = d.iuran || getLocal('iuran', []);
+        const freshPeng = d.pengeluaran || getLocal('pengeluaran', []);
+        const freshUnd = d.undian || getLocal('undian', []);
+        const freshSet = d.settings || getLocal('settings', SEED_SETTINGS);
+        const freshUsr = (d.users && d.users.length) ? d.users : getLocal('users', SEED_USERS);
+
+        if (d.karyawan) setLocal('karyawan', freshKar);
+        if (d.iuran) setLocal('iuran', freshIur);
+        if (d.pengeluaran) setLocal('pengeluaran', freshPeng);
+        if (d.undian) setLocal('undian', freshUnd);
+        if (d.settings) setLocal('settings', freshSet);
+        if (d.users && d.users.length) setLocal('users', freshUsr);
+
+        const computedStats = calculateLocalDashboardStats({
+          karyawan: freshKar,
+          iuran: freshIur,
+          pengeluaran: freshPeng,
+          settings: freshSet
+        });
+
         return {
           success: true,
           data: {
-            stats: d.stats || calculateLocalDashboardStats(d),
-            karyawan: d.karyawan || getLocal('karyawan', SEED_KARYAWAN),
-            iuran: d.iuran || getLocal('iuran', []),
-            pengeluaran: d.pengeluaran || getLocal('pengeluaran', []),
-            undian: d.undian || getLocal('undian', []),
-            settings: d.settings || getLocal('settings', SEED_SETTINGS),
-            users: (d.users && d.users.length) ? d.users : getLocal('users', SEED_USERS)
+            stats: computedStats,
+            karyawan: freshKar,
+            iuran: freshIur,
+            pengeluaran: freshPeng,
+            undian: freshUnd,
+            settings: freshSet,
+            users: freshUsr
           }
         };
       }
@@ -367,7 +382,7 @@ export const api = {
         setLocal('settings', localSettings);
       }
 
-      const calculatedStats = statsRes?.success ? statsRes.data : calculateLocalDashboardStats({
+      const calculatedStats = calculateLocalDashboardStats({
         karyawan: freshKaryawan,
         iuran: freshIuran,
         pengeluaran: freshPengeluaran,
