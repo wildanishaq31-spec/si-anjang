@@ -35,9 +35,14 @@ export default function App() {
     } catch (e) {}
     return 'dashboard';
   });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    try {
+      const path = window.location.pathname.replace(/^\/+/, '').toLowerCase();
+      const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+      if (path === 'download' || hash === 'download') return false;
+    } catch (e) {}
+    return true;
+  });
 
   // Sync URL changes with activePage
   useEffect(() => {
@@ -386,16 +391,16 @@ export default function App() {
   if (!currentUser) {
     if (activePage === 'download') {
       return (
-        <div className="min-h-screen bg-[#0b1120] text-slate-100 p-4 sm:p-8 flex flex-col justify-between">
-          <div className="max-w-4xl w-full mx-auto my-auto">
+        <div className="min-h-screen bg-[#0b1120] text-slate-100 p-4 sm:p-8 flex flex-col justify-between selection:bg-blue-600 selection:text-white">
+          <div className="max-w-5xl w-full mx-auto my-auto">
             <DownloadPage onNavigate={handleNavigate} currentUser={null} />
           </div>
-          <div className="text-center pt-4">
+          <div className="text-center pt-2 pb-6">
             <button
               onClick={() => handleNavigate('login')}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-2xl border border-white/15 backdrop-blur-xs shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
             >
-              Kembali ke Halaman Masuk (Login)
+              <span>← Kembali ke Halaman Masuk (Login)</span>
             </button>
           </div>
         </div>

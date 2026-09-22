@@ -106,14 +106,14 @@ export default function DownloadPage({ onNavigate, currentUser }) {
   };
 
   const copyUrl = () => {
-    const url = window.location.origin;
+    const url = `${window.location.origin}/download`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     Swal.fire({
       icon: 'success',
       title: 'Tautan Disalin!',
-      text: 'Link aplikasi berhasil disalin ke clipboard.',
+      text: 'Link halaman download aplikasi berhasil disalin.',
       toast: true,
       position: 'top-end',
       timer: 2000,
@@ -122,8 +122,8 @@ export default function DownloadPage({ onNavigate, currentUser }) {
   };
 
   const shareToWA = () => {
-    const url = window.location.origin;
-    const text = `*SI-ANJANG V.10.5 — UPTD Puskesmas Cermee*\n\nPasang aplikasi sistem informasi iuran & undian anjangsana di HP tanpa unduh APK:\n${url}\n\n_Buka tautan lalu klik Tambahkan ke Layar Utama (PWA)._`;
+    const url = `${window.location.origin}/download`;
+    const text = `*SI-ANJANG V.10.5 — UPTD Puskesmas Cermee*\n\nSilakan buka link berikut untuk langsung memasang aplikasi SI-ANJANG di HP Anda:\n${url}\n\n_Buka tautan lalu klik Tambahkan ke Layar Utama (PWA)._`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
