@@ -25,6 +25,7 @@ Aplikasi **SI-ANJANG V.10.5** adalah sistem manajemen iuran, kas, dan pengundian
 - **Catatan Sesi Diskusi:**
   - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20]] (Migrasi Awal React PWA)
   - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-21]] (Deployment Vercel, Optimasi 0ms, Bugfix Grid & Branding V.10.5)
+  - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-23]] (Headless GAS API, Penanganan Blank Screen, & Read-Write Spreadsheet)
 
 ---
 
@@ -36,7 +37,7 @@ Sistem beroperasi di atas spreadsheet yang memiliki sheet-sheet berikut:
 3. **`Iuran`**: Transaksi masuk (`id`, `tanggal`, `id_karyawan`, `nama_karyawan`, `periode`, `nominal`, `metode_pembayaran`, `uang_diterima`, `kembalian`).
 4. **`Pengeluaran`**: Transaksi keluar (`id`, `tanggal`, `keterangan`, `nominal`, `kategori`).
 5. **`Undian`**: Riwayat pemenang tuan rumah (`id`, `tanggal`, `id_karyawan`, `nama_pemenang`, `periode`).
-6. **`Settings`**: Konfigurasi info dashboard dan template broadcast WhatsApp.
+6. **`Settings`**: Konfigurasi info dashboard (`info_dashboard`) dan template broadcast WhatsApp (`wa_template`).
 
 ---
 
@@ -46,16 +47,21 @@ Sistem beroperasi di atas spreadsheet yang memiliki sheet-sheet berikut:
 - **Instant Rendering:** Data dimuat seketika dari `localStorage` saat aplikasi dibuka. Tidak ada delay, tidak ada layar kosong, dan Dashboard langsung menampilkan angka riil.
 - **Background Sync:** Sinkronisasi dengan Google Apps Script berjalan di latar belakang tanpa mengunci antarmuka.
 - **Optimistic CRUD:** Operasi input/edit/hapus langsung mengupdate UI seketika dalam waktu sub-50ms sebelum request jaringan selesai.
+- **Dirty-Lock Input Protection:** Mengunci input formulir saat pengguna mengetik agar perubahan tidak tertimpa oleh proses background sync.
 
-### 2. Filter Iuran Anti-Double Input
+### 2. Headless Google Apps Script REST API
+- **Pure JSON Service:** Google Apps Script berjalan 100% sebagai backend headless REST API (tanpa rendering `Index.html`).
+- **Single-Roundtrip Consolidation (`getAllData`):** Menarik data dashboard, karyawan, iuran, pengeluaran, undian, users, dan settings dalam 1 panggilan API.
+
+### 3. Filter Iuran Anti-Double Input
 - Dropdown pencarian kasir **hanya memuat pegawai yang belum lunas** pada periode aktif.
 - Begitu data disimpan, nama pegawai langsung hilang dari daftar saran pembayaran.
 
-### 3. Sistem Undian Tuan Rumah Otomatis & Manual
+### 4. Sistem Undian Tuan Rumah Otomatis & Manual
 - **Mode Otomatis:** Mengacak kandidat berstatus `Belum`, efek putar cepat (*rolling animation*), dan perayaan confetti.
 - **Mode Manual:** Pencarian hanya kandidat berstatus `Belum` dengan kalkulasi sisa bulan siklus secara otomatis.
 
-### 4. Rekapitulasi & Ekspor
+### 5. Rekapitulasi & Ekspor
 - Pemisahan penerimaan tunai (*cash*) vs transfer bank.
 - Ekspor spreadsheet ke format `.xlsx` (SheetJS).
 - Broadcast otomatis daftar anggota belum bayar ke grup WhatsApp.
@@ -65,3 +71,4 @@ Sistem beroperasi di atas spreadsheet yang memiliki sheet-sheet berikut:
 ## 🔗 Referensi File & Log Sesi
 - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20]] — Log Sesi Diskusi 20 Sept 2026
 - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-21]] — Log Sesi Diskusi 21 Sept 2026
+- [[LOG_SESI_CHAT_OBSIDIAN_2026-09-23]] — Log Sesi Diskusi 23 Sept 2026
