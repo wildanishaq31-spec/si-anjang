@@ -18,9 +18,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
       },
       manifest: {
-        name: 'SI-ANJANG V.10.5 PKM Cermee',
-        short_name: 'SI-ANJANG',
-        description: 'Sistem Informasi Manajemen Iuran & Undian Anjangsana (SI-ANJANG V.10.5) UPTD Puskesmas Cermee',
+        name: 'SI-ANJANGSANA V.10.5 PKM Cermee',
+        short_name: 'SI-ANJANGSANA',
+        description: 'Sistem Informasi Manajemen Iuran & Undian Anjangsana (SI-ANJANGSANA V.10.5) UPTD Puskesmas Cermee',
         theme_color: '#111536',
         background_color: '#0b1120',
         display: 'standalone',

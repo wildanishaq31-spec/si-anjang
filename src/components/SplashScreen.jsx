@@ -111,7 +111,7 @@ export default function SplashScreen({ onFinish }) {
       {/* Background Poster Image */}
       <img
         src="/splash-pkm.jpg"
-        alt="SI-ANJANG Puskesmas Cermee"
+        alt="SI-ANJANGSANA Puskesmas Cermee"
         className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
       />
 
@@ -144,7 +144,7 @@ export default function SplashScreen({ onFinish }) {
 
           {/* Footer Note */}
           <div className="text-[10px] text-slate-400 text-center font-medium tracking-wide">
-            SI-ANJANG V.10.5 • KELUARGA BESAR PKM CERMEE
+            SI-ANJANGSANA V.10.5 • KELUARGA BESAR PKM CERMEE
           </div>
         </div>
       </div>

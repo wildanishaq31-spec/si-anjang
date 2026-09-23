@@ -69,7 +69,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
         Swal.fire({
           icon: 'success',
           title: 'Aplikasi Terpasang!',
-          text: 'SI-ANJANG berhasil ditambahkan ke layar utama HP Anda.',
+          text: 'SI-ANJANGSANA berhasil ditambahkan ke layar utama HP Anda.',
           confirmButtonColor: '#2563eb'
         });
         setDeferredPrompt(null);
@@ -96,7 +96,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
           <div style="text-align: left; font-size: 13px; line-height: 1.6;">
             <p>1. Ketuk tombol <b>Titik Tiga (⋮)</b> di pojok kanan atas browser Chrome / Samsung Internet.</p>
             <p style="margin-top: 8px;">2. Pilih menu <b>"Install Aplikasi"</b> atau <b>"Tambahkan ke Layar Utama"</b>.</p>
-            <p style="margin-top: 8px;">3. Ikon SI-ANJANG akan langsung muncul di menu aplikasi HP Anda.</p>
+            <p style="margin-top: 8px;">3. Ikon SI-ANJANGSANA akan langsung muncul di menu aplikasi HP Anda.</p>
           </div>
         `,
         confirmButtonColor: '#2563eb',
@@ -123,7 +123,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
 
   const shareToWA = () => {
     const url = `${window.location.origin}/download`;
-    const text = `*SI-ANJANG V.10.5 — UPTD Puskesmas Cermee*\n\nSilakan buka link berikut untuk langsung memasang aplikasi SI-ANJANG di HP Anda:\n${url}\n\n_Buka tautan lalu klik Tambahkan ke Layar Utama (PWA)._`;
+    const text = `*SI-ANJANGSANA V.10.5 — UPTD Puskesmas Cermee*\n\nSilakan buka link berikut untuk langsung memasang aplikasi SI-ANJANGSANA di HP Anda:\n${url}\n\n_Buka tautan lalu klik Tambahkan ke Layar Utama (PWA)._`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -141,7 +141,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-tight">
-            Pasang Aplikasi <span className="text-amber-300">SI-ANJANG</span> di HP Anda
+            Pasang Aplikasi <span className="text-amber-300">SI-ANJANGSANA</span> di HP Anda
           </h1>
 
           <p className="mt-3 text-sm sm:text-base text-blue-100/90 leading-relaxed font-medium">
@@ -272,7 +272,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
               </span>
               <h4 className="font-bold text-slate-900 text-sm">Buka di Google Chrome</h4>
               <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                Buka link website SI-ANJANG menggunakan browser Google Chrome atau Samsung Internet di HP Android Anda.
+                Buka link website SI-ANJANGSANA menggunakan browser Google Chrome atau Samsung Internet di HP Android Anda.
               </p>
             </div>
 
@@ -292,7 +292,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
               </span>
               <h4 className="font-bold text-slate-900 text-sm">Selesai & Siap Digunakan</h4>
               <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                Ikon aplikasi SI-ANJANG akan otomatis terpasang di menu HP. Buka aplikasi dan nikmati pengalaman native!
+                Ikon aplikasi SI-ANJANGSANA akan otomatis terpasang di menu HP. Buka aplikasi dan nikmati pengalaman native!
               </p>
             </div>
           </div>
@@ -307,7 +307,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
               </span>
               <h4 className="font-bold text-slate-900 text-sm">Buka di Browser Safari</h4>
               <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                Pastikan Anda membuka website SI-ANJANG melalui browser bawaan Apple Safari di iPhone atau iPad Anda.
+                Pastikan Anda membuka website SI-ANJANGSANA melalui browser bawaan Apple Safari di iPhone atau iPad Anda.
               </p>
             </div>
 
@@ -327,7 +327,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
               </span>
               <h4 className="font-bold text-slate-900 text-sm">Ketuk "Tambah" (Add)</h4>
               <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                Tekan tombol <b>"Tambah"</b> di pojok kanan atas. Ikon SI-ANJANG akan langsung tampil di Homescreen iPhone Anda.
+                Tekan tombol <b>"Tambah"</b> di pojok kanan atas. Ikon SI-ANJANGSANA akan langsung tampil di Homescreen iPhone Anda.
               </p>
             </div>
           </div>
@@ -377,7 +377,7 @@ export default function DownloadPage({ onNavigate, currentUser }) {
             <span>Bagikan Tautan ke Anggota Puskesmas</span>
           </h3>
           <p className="text-xs sm:text-sm text-slate-400 font-medium">
-            Permudah anggota lain untuk memasang aplikasi SI-ANJANG di HP mereka
+            Permudah anggota lain untuk memasang aplikasi SI-ANJANGSANA di HP mereka
           </p>
         </div>
 

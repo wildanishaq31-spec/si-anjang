@@ -67,7 +67,7 @@ export default function Dashboard({ stats, loading, onNavigate, currentUser }) {
           </h2>
 
           <p className="mt-2 text-sm sm:text-base text-blue-100/90 leading-relaxed font-medium">
-            {data.info || 'Selamat datang di sistem manajemen iuran & undian SI-ANJANG V.10.5.'}
+            {data.info || 'Selamat datang di sistem manajemen iuran & undian SI-ANJANGSANA V.10.5.'}
           </p>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
