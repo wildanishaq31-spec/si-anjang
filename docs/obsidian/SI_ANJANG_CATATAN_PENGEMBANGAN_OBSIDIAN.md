@@ -26,6 +26,7 @@ Aplikasi **SI-ANJANG V.10.5** adalah sistem manajemen iuran, kas, dan pengundian
   - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20]] (Migrasi Awal React PWA)
   - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-21]] (Deployment Vercel, Optimasi 0ms, Bugfix Grid & Branding V.10.5)
   - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-23]] (Headless GAS API, Penanganan Blank Screen, & Read-Write Spreadsheet)
+  - [[LOG_SESI_CHAT_OBSIDIAN_2026-10-01]] (Format WA Blast, Persistent Session PWA, & Setup Subdomain Cloudflare)
 
 ---
 
@@ -72,3 +73,4 @@ Sistem beroperasi di atas spreadsheet yang memiliki sheet-sheet berikut:
 - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-20]] — Log Sesi Diskusi 20 Sept 2026
 - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-21]] — Log Sesi Diskusi 21 Sept 2026
 - [[LOG_SESI_CHAT_OBSIDIAN_2026-09-23]] — Log Sesi Diskusi 23 Sept 2026
+- [[LOG_SESI_CHAT_OBSIDIAN_2026-10-01]] — Log Sesi Diskusi 01 Okt 2026
