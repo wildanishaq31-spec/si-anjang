@@ -286,10 +286,18 @@ export const api = {
     // 2. Offline / Local Fallback
     const passHash = await hashPassword(password);
     const users = getLocal('users', SEED_USERS);
-    const user = users.find(u => u.username === trimmedUser);
+    const user = users.find(u => (u.username || '').toLowerCase() === trimmedUser.toLowerCase());
 
     const demoHash = '3dfba9f94793741870bb788db9fbc2f98642a8b9816024fae1fa4662d511a3d9';
-    if (user && (user.password === passHash || passHash === demoHash || password === 'Demo2026!' || password === 'admin' || password === 'bendahara')) {
+    if (user && (
+      user.password === passHash ||
+      user.password === password ||
+      user.password === password.trim() ||
+      passHash === demoHash ||
+      password === 'Demo2026!' ||
+      password === 'admin' ||
+      password === 'bendahara'
+    )) {
       const token = 'token-' + Math.random().toString(36).substring(2);
       return {
         success: true,

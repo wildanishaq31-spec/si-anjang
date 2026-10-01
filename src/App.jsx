@@ -20,7 +20,7 @@ export default function App() {
   // Auth state
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const saved = sessionStorage.getItem('anjangsana_session');
+      const saved = localStorage.getItem('anjangsana_session') || sessionStorage.getItem('anjangsana_session');
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
       return null;
@@ -105,6 +105,7 @@ export default function App() {
       api.logout(currentUser.username);
     }
     setCurrentUser(null);
+    localStorage.removeItem('anjangsana_session');
     sessionStorage.removeItem('anjangsana_session');
     setActivePage('dashboard');
   }, [currentUser]);
@@ -163,6 +164,11 @@ export default function App() {
     }
   }, []);
 
+  // Initial silent background sync on app launch (warms up GAS and preloads users cache)
+  useEffect(() => {
+    syncServerData();
+  }, [syncServerData]);
+
   useEffect(() => {
     if (currentUser) {
       // Immediate local computation
@@ -177,6 +183,7 @@ export default function App() {
     const res = await api.login(username, password);
     if (res.success) {
       setCurrentUser(res.user);
+      localStorage.setItem('anjangsana_session', JSON.stringify(res.user));
       sessionStorage.setItem('anjangsana_session', JSON.stringify(res.user));
       setActivePage('dashboard');
       // Trigger background sync immediately after login
@@ -195,6 +202,7 @@ export default function App() {
       token: 'guest-token'
     };
     setCurrentUser(guestUser);
+    localStorage.setItem('anjangsana_session', JSON.stringify(guestUser));
     sessionStorage.setItem('anjangsana_session', JSON.stringify(guestUser));
     setActivePage('dashboard');
 
