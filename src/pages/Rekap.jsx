@@ -139,7 +139,7 @@ export default function Rekap({ iuranList, karyawanList, waTemplate, loading }) 
   const generatedWaText = useMemo(() => {
     const listStr = unpaidMembers.length === 0
       ? '(Tidak ada - semua anggota telah lunas)'
-      : unpaidMembers.map((u, i) => `${i + 1}. ${u.nama} (${u.jabatan})`).join('\n');
+      : unpaidMembers.map((u, i) => `${i + 1}. ${u.nama}`).join('\n');
 
     const defaultTpl = `*PEMBERITAHUAN IURAN ANJANGSANA*
 UPTD Puskesmas Cermee
