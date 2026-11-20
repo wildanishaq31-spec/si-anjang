@@ -14,8 +14,8 @@ export async function hashPassword(password) {
 // Initial Mock / Local Seeds for Puskesmas Cermee
 export const SEED_USERS = [
   { username: 'admin', fullname: 'Super Admin', role: 'Superadmin', photo: '', token: '' },
-  { username: 'bendahara1', fullname: 'Bendahara 1', role: 'Bendahara', photo: '', token: '' },
-  { username: 'bendahara2', fullname: 'Bendahara 2', role: 'Bendahara', photo: '', token: '' },
+  { username: 'fitri', fullname: 'Fitria Ningrum', role: 'Bendahara', photo: '', token: '' },
+  { username: 'daru', fullname: 'Daru Suprantoko', role: 'Bendahara', photo: '', token: '' },
   { username: 'bendahara', fullname: 'Bendahara Keuangan', role: 'Bendahara', photo: '', token: '' }
 ];
 

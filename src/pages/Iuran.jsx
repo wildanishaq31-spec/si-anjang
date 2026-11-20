@@ -25,6 +25,25 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
   const [editId, setEditId] = useState('');
   const [editPetugas, setEditPetugas] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Default petugas berdasarkan user yang login (@daru, @fitri, atau default)
+  const getDefaultPetugas = useCallback(() => {
+    const un = (currentUser?.username || '').toLowerCase();
+    const fn = (currentUser?.fullname || '').toLowerCase();
+    if (un === 'daru' || fn.includes('daru')) return 'Daru Suprantoko';
+    if (un === 'fitri' || fn.includes('fitri')) return 'Fitria Ningrum';
+    if (currentUser?.fullname && !un.includes('admin')) return currentUser.fullname;
+    return 'Daru Suprantoko';
+  }, [currentUser]);
+
+  const [petugasInput, setPetugasInput] = useState(() => getDefaultPetugas());
+
+  useEffect(() => {
+    if (!isEdit) {
+      setPetugasInput(getDefaultPetugas());
+    }
+  }, [currentUser, isEdit, getDefaultPetugas]);
+
   const [searchKaryawan, setSearchKaryawan] = useState('');
   const [selectedKaryawan, setSelectedKaryawan] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -204,6 +223,7 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
     setIsEdit(false);
     setEditId('');
     setEditPetugas('');
+    setPetugasInput(getDefaultPetugas());
     setSearchKaryawan('');
     setSelectedKaryawan(null);
     setNominal(0);
@@ -254,8 +274,8 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
     const bln = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const currentPeriode = `${bln[now.getMonth()]} ${now.getFullYear()}`;
 
-    // Nama petugas yang sedang login (Super Admin, Bendahara 1, Bendahara 2)
-    const activePetugas = currentUser?.fullname || currentUser?.username || 'Admin';
+    // Nama bendahara yang mencatat (Fitria Ningrum, Daru Suprantoko, dsb)
+    const activePetugas = petugasInput || getDefaultPetugas();
 
     const payload = {
       isEdit: isEdit ? 'true' : 'false',
@@ -268,7 +288,7 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
       metode_pembayaran: metode,
       uang_diterima: Number(uangDiterima || nominal),
       kembalian: Number(kembalian),
-      petugas: isEdit && editPetugas ? editPetugas : activePetugas
+      petugas: activePetugas
     };
 
     setIsSubmitting(true);
@@ -295,7 +315,14 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
   const handleEdit = (item) => {
     setIsEdit(true);
     setEditId(item.id);
-    setEditPetugas(item.petugas || '');
+    const rawP = String(item.petugas || '').trim();
+    if (rawP && rawP.toLowerCase() !== 'admin' && rawP.toLowerCase() !== 'bendahara') {
+      setEditPetugas(rawP);
+      setPetugasInput(rawP);
+    } else {
+      setEditPetugas(getDefaultPetugas());
+      setPetugasInput(getDefaultPetugas());
+    }
     setSearchKaryawan(item.nama_karyawan);
     setSelectedKaryawan({ id: item.id_karyawan, nama: item.nama_karyawan });
     setTanggal(item.tanggal || new Date().toISOString().substring(0, 10));
@@ -368,7 +395,7 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
               <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-              <span>Petugas: <strong className="text-blue-900">{currentUser?.fullname || currentUser?.username || 'Admin'}</strong></span>
+              <span>Pencatat: <strong className="text-blue-900">{petugasInput}</strong></span>
             </span>
 
             {isEdit && (
@@ -492,24 +519,46 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
             </div>
           </div>
 
-          {/* Row 2: Metode Pembayaran */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Metode Pembayaran
-              </label>
-              <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                Otomatis Periode: {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-              </span>
+          {/* Row 2: Metode Pembayaran & Petugas Bendahara */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Metode Pembayaran
+                </label>
+                <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                  Periode: {periode}
+                </span>
+              </div>
+              <select
+                value={metode}
+                onChange={(e) => handleMetodeChange(e.target.value)}
+                className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all cursor-pointer"
+              >
+                <option value="Cash / Tunai">Cash / Tunai</option>
+                <option value="Transfer">Transfer Bank</option>
+              </select>
             </div>
-            <select
-              value={metode}
-              onChange={(e) => handleMetodeChange(e.target.value)}
-              className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all cursor-pointer"
-            >
-              <option value="Cash / Tunai">Cash / Tunai</option>
-              <option value="Transfer">Transfer Bank</option>
-            </select>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Petugas Bendahara <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[11px] font-semibold text-slate-400">
+                  Yang mencatat
+                </span>
+              </div>
+              <select
+                value={petugasInput}
+                onChange={(e) => setPetugasInput(e.target.value)}
+                className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all cursor-pointer"
+              >
+                <option value="Daru Suprantoko">Daru Suprantoko (@daru)</option>
+                <option value="Fitria Ningrum">Fitria Ningrum (@fitri)</option>
+                <option value="Super Admin">Super Admin (@admin)</option>
+              </select>
+            </div>
           </div>
 
           {/* Row 3: Calculator Uang Diterima & Kembalian */}
@@ -622,16 +671,25 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
                 paginated.map((item, idx) => {
                   const rowNo = (page - 1) * perPage + idx + 1;
                   const isTransfer = item.metode_pembayaran?.toLowerCase().includes('transfer');
-                  const pNama = String(item.petugas || 'Admin').toLowerCase();
-                  const isSuperadmin = pNama.includes('super') || pNama.includes('admin');
-                  const isBendahara1 = pNama.includes('bendahara 1') || pNama.includes('bendahara1');
-                  const isBendahara2 = pNama.includes('bendahara 2') || pNama.includes('bendahara2');
+                  const rawP = String(item.petugas || '').trim();
+                  const pLower = rawP.toLowerCase();
 
-                  let badgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
-                  if (isSuperadmin) badgeColor = 'bg-purple-50 text-purple-700 border-purple-200';
-                  else if (isBendahara1) badgeColor = 'bg-blue-50 text-blue-700 border-blue-200';
-                  else if (isBendahara2) badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                  else if (pNama.includes('bendahara')) badgeColor = 'bg-sky-50 text-sky-700 border-sky-200';
+                  let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                  let displayName = 'Bendahara';
+
+                  if (pLower.includes('fitri')) {
+                    badgeColor = 'bg-rose-50 text-rose-700 border-rose-200';
+                    displayName = 'Fitria Ningrum';
+                  } else if (pLower.includes('daru')) {
+                    badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    displayName = 'Daru Suprantoko';
+                  } else if (pLower === 'super admin' || pLower.includes('superadmin')) {
+                    badgeColor = 'bg-purple-50 text-purple-700 border-purple-200';
+                    displayName = 'Super Admin';
+                  } else if (rawP && pLower !== 'admin') {
+                    badgeColor = 'bg-sky-50 text-sky-700 border-sky-200';
+                    displayName = rawP;
+                  }
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
@@ -649,7 +707,7 @@ export default function Iuran({ iuranList, karyawanList, currentUser, onSave, on
                       <td className="py-3 px-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold text-[11px] border ${badgeColor}`}>
                           <UserCheck className="w-3.5 h-3.5 opacity-80" />
-                          <span>{item.petugas || 'Admin'}</span>
+                          <span>{displayName}</span>
                         </span>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-900">{formatRp(item.nominal)}</td>
