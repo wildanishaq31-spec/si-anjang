@@ -28,4 +28,5 @@ dist-ssr
 *.gs
 Code.gs
 gas/
+.clasp.json
 

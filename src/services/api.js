@@ -14,6 +14,8 @@ export async function hashPassword(password) {
 // Initial Mock / Local Seeds for Puskesmas Cermee
 export const SEED_USERS = [
   { username: 'admin', fullname: 'Super Admin', role: 'Superadmin', photo: '', token: '' },
+  { username: 'bendahara1', fullname: 'Bendahara 1', role: 'Bendahara', photo: '', token: '' },
+  { username: 'bendahara2', fullname: 'Bendahara 2', role: 'Bendahara', photo: '', token: '' },
   { username: 'bendahara', fullname: 'Bendahara Keuangan', role: 'Bendahara', photo: '', token: '' }
 ];
 
@@ -505,7 +507,8 @@ export const api = {
       nominal: Number(payload.nominal),
       metode_pembayaran: payload.metode_pembayaran,
       uang_diterima: Number(payload.uang_diterima),
-      kembalian: Number(payload.kembalian)
+      kembalian: Number(payload.kembalian),
+      petugas: payload.petugas || 'Admin'
     };
 
     if (payload.isEdit === 'true' || payload.isEdit === true) {
@@ -516,7 +519,13 @@ export const api = {
     }
     setLocal('iuran', list);
 
-    const onlineRes = await fetchGAS('saveIuran', payload, 'POST', 10000);
+    const onlineRes = await fetchGAS('saveIuran', payload, 'POST', 12000);
+    if (onlineRes && onlineRes.success === false) {
+      // Revert local storage jika server menolak (misal duplikat)
+      const revertedList = getLocal('iuran', []).filter(i => String(i.id) !== String(newItem.id));
+      setLocal('iuran', revertedList);
+      return onlineRes;
+    }
     return onlineRes || { success: true };
   },
 

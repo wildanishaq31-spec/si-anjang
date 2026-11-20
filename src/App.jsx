@@ -71,6 +71,11 @@ export default function App() {
         window.history.pushState(null, '', '/');
       }
     } catch (e) {}
+
+    // Auto-sync data terbaru dari spreadsheet saat berpindah halaman penting (terutama iuran)
+    if (page === 'iuran' || page === 'dashboard' || page === 'rekap') {
+      syncServerData();
+    }
   };
 
   // UI & Sync states
@@ -177,6 +182,33 @@ export default function App() {
       syncServerData();
     }
   }, [currentUser, refreshLocalDashboard, syncServerData]);
+
+  // Sinkronisasi Otomatis Antar-Pengguna (Multi-User Sync: Superadmin & 2 Bendahara)
+  // Menjaga data selalu fresh saat berpindah tab atau secara berkala tiap 30 detik
+  useEffect(() => {
+    if (!currentUser || currentUser.role === 'Tamu') return;
+
+    const handleFocusSync = () => {
+      if (!document.hidden) {
+        syncServerData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocusSync);
+    document.addEventListener('visibilitychange', handleFocusSync);
+
+    const pollingTimer = setInterval(() => {
+      if (!document.hidden) {
+        syncServerData();
+      }
+    }, 30000); // 30 detik polling
+
+    return () => {
+      window.removeEventListener('focus', handleFocusSync);
+      document.removeEventListener('visibilitychange', handleFocusSync);
+      clearInterval(pollingTimer);
+    };
+  }, [currentUser, syncServerData]);
 
   // Login handler (Instant redirect)
   const handleLogin = async (username, password) => {
@@ -287,7 +319,8 @@ export default function App() {
       nominal: Number(payload.nominal),
       metode_pembayaran: payload.metode_pembayaran,
       uang_diterima: Number(payload.uang_diterima),
-      kembalian: Number(payload.kembalian)
+      kembalian: Number(payload.kembalian),
+      petugas: payload.petugas || currentUser?.fullname || currentUser?.username || 'Admin'
     };
 
     let nextList = [...iuranList];
@@ -299,8 +332,24 @@ export default function App() {
     }
     setIuranList(nextList);
     refreshLocalDashboard({ iuran: nextList });
-    api.saveIuran(payload);
-    return { success: true };
+
+    // Kirim ke server Apps Script dengan validasi respon
+    const res = await api.saveIuran({
+      ...payload,
+      petugas: newItem.petugas
+    });
+
+    if (res && res.success === false) {
+      // Rollback tampilan lokal jika ditolak oleh server (misal input ganda)
+      setIuranList(iuranList);
+      refreshLocalDashboard({ iuran: iuranList });
+      syncServerData();
+      throw new Error(res.message || 'Transaksi ditolak oleh server.');
+    }
+
+    // Refresh sinkronisasi agar ID otoritatif dan timestamp terupdate sempurna
+    setTimeout(syncServerData, 500);
+    return res || { success: true };
   };
 
   const handleDeleteIuran = async (id) => {
@@ -490,9 +539,11 @@ export default function App() {
             <Iuran
               iuranList={iuranList}
               karyawanList={karyawanList}
+              currentUser={currentUser}
               onSave={handleSaveIuran}
               onDelete={handleDeleteIuran}
-              loading={false}
+              onSync={syncServerData}
+              loading={isSyncing}
             />
           )}
 
